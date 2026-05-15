@@ -574,6 +574,7 @@ with st.expander("➕ Click to add a coin to portfolio"):
             placeholder="e.g. ETHUSD"
         ).strip().upper()
 
+    sym_names = [s["symbol"] for s in all_syms] if all_syms else ["ETHUSD"]
     rc1, rc2, rc3 = st.columns(3)
     with rc1:
         rem_sym = st.selectbox("Select Symbol", sym_names, key="rem_sym_sel")
