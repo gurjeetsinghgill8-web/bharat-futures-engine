@@ -562,53 +562,82 @@ else:
     )
 
 # ── Add Coin ────────────────────────────────────────────────────────
-st.markdown("<div class='shdr'>➕ Add Coin</div>", unsafe_allow_html=True)
-with st.expander("➕ Click to add a coin to portfolio"):
+st.markdown("<div class='shdr'>➕ Add / Remove Coins</div>", unsafe_allow_html=True)
+with st.expander("➕ Click to Add a Coin to Portfolio", expanded=True):
     st.markdown(
-        "<div style='color:#8b949e;font-size:12px;margin-bottom:8px;'>"
-        "Enter the Delta Exchange symbol exactly (e.g. ETHUSD, SOLUSD, AVAXUSD).<br>"
-        "Coin will use the same TF / Period / Multiplier as BTC set above."
-        "</div>", unsafe_allow_html=True
+        "<div class='ibox'>Enter any Delta Exchange perpetual symbol (e.g. ETHUSD, SOLUSD, XRPUSD).<br>"
+        "Coin will trade using the same SuperTrend settings as BTC.</div>",
+        unsafe_allow_html=True
     )
-    ac1, ac2, ac3 = st.columns(3)
-    with ac1:
+    add_c1, add_c2, add_c3 = st.columns([2, 1, 1])
+    with add_c1:
         new_sym = st.text_input(
-            "Symbol", value="ETHUSD", key="b5_sym",
-            placeholder="e.g. ETHUSD"
+            "Symbol (e.g. ETHUSD)", value="", key="b5_sym",
+            placeholder="ETHUSD"
         ).strip().upper()
+    with add_c2:
+        new_lots = st.number_input("Lots", min_value=1, max_value=50, value=1, step=1, key="b5_lots")
+    with add_c3:
+        st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+        if st.button("✅ ADD COIN", key="btn_add_sym"):
+            STABLES = {"BUSD","USDT","USDC","TUSD","USDP","DAI"}
+            if not new_sym:
+                st.error("Enter a symbol first!")
+            elif new_sym.replace("USD","") in STABLES or new_sym in STABLES:
+                st.error(f"⚠️ {new_sym} is a stablecoin — blocked!")
+            else:
+                tf  = db.get_param("timeframe",    "5m")
+                per = int(db.get_param("st_period",    "10") or 10)
+                mul = float(db.get_param("st_multiplier","1.0") or 1.0)
+                db.add_symbol(new_sym, timeframe=tf, st_period=per,
+                              st_multiplier=mul, lots=new_lots, enabled=1)
+                send_telegram_msg(
+                    f"🟢 SYMBOL ADDED: {new_sym}\n"
+                    f"TF={tf} | P={per} | M={mul} | Lots={new_lots}"
+                )
+                st.success(f"✅ {new_sym} added! Bot will trade on next candle close.")
+                st.rerun()
 
-    sym_names = [s["symbol"] for s in all_syms] if all_syms else ["ETHUSD"]
-    rc1, rc2, rc3 = st.columns(3)
-    with rc1:
-        rem_sym = st.selectbox("Select Symbol", sym_names, key="rem_sym_sel")
-    with rc2:
-        if st.button("🔴 REMOVE SYMBOL", key="btn_rem_sym"):
-            db.remove_symbol(rem_sym)
-            send_telegram_msg(f"🗑️ SYMBOL REMOVED: {rem_sym}")
-            st.warning(f"{rem_sym} removed.")
-            st.rerun()
-    with rc3:
-        if st.button("⏸ SQUARE OFF SYMBOL", key="btn_sq_sym"):
-            futures_executor.square_off_symbol(rem_sym, reason="Manual Dashboard")
-            st.error(f"Square off sent for {rem_sym}!")
-            st.rerun()
+st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
-    # ── Enable / Disable toggle ───────────────────────────────
-    if all_syms:
-        st.markdown("<div class='shdr'>⚡ Enable / Disable Individual Symbols</div>", unsafe_allow_html=True)
-        n_cols = max(1, min(len(all_syms), 5))
-        tog_cols = st.columns(n_cols)
-        for i, s in enumerate(all_syms):
-            with tog_cols[i % n_cols]:
-                cur_en  = s["enabled"]
-                btn_lbl = f"{'ON' if cur_en else 'OFF'} {s['symbol']}"
-                if st.button(btn_lbl, key=f"tog_{s['symbol']}"):
-                    db.add_symbol(
-                        s["symbol"], s["timeframe"], s["st_period"],
-                        s["st_multiplier"], s["lots"],
-                        0 if cur_en else 1
-                    )
-                    st.rerun()
+# ── Remove / Square Off ────────────────────────────────────────────
+if all_syms:
+    with st.expander("🔴 Remove or Square Off a Coin"):
+        sym_names = [s["symbol"] for s in all_syms]
+        rem_c1, rem_c2, rem_c3 = st.columns(3)
+        with rem_c1:
+            rem_sym = st.selectbox("Select Symbol", sym_names, key="rem_sym_sel")
+        with rem_c2:
+            st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+            if st.button("🗑️ REMOVE", key="btn_rem_sym"):
+                db.remove_symbol(rem_sym)
+                send_telegram_msg(f"🗑️ SYMBOL REMOVED: {rem_sym}")
+                st.warning(f"{rem_sym} removed from portfolio.")
+                st.rerun()
+        with rem_c3:
+            st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
+            if st.button("⏸ SQUARE OFF", key="btn_sq_sym"):
+                futures_executor.square_off_symbol(rem_sym, reason="Manual Dashboard")
+                st.error(f"Square off sent for {rem_sym}!")
+                st.rerun()
+
+
+# ── Enable / Disable toggle ──────────────────────────────────────────
+if all_syms:
+    st.markdown("<div class='shdr'>⚡ Enable / Disable Individual Symbols</div>", unsafe_allow_html=True)
+    n_cols = max(1, min(len(all_syms), 5))
+    tog_cols = st.columns(n_cols)
+    for i, s in enumerate(all_syms):
+        with tog_cols[i % n_cols]:
+            cur_en  = s["enabled"]
+            btn_lbl = f"{'ON' if cur_en else 'OFF'} {s['symbol']}"
+            if st.button(btn_lbl, key=f"tog_{s['symbol']}"):
+                db.add_symbol(
+                    s["symbol"], s["timeframe"], s["st_period"],
+                    s["st_multiplier"], s["lots"],
+                    0 if cur_en else 1
+                )
+                st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════
