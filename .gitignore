@@ -1,0 +1,59 @@
+# ============================================================
+# BHARAT FUTURES ENGINE — .gitignore
+# NEVER commit secrets or runtime files to GitHub
+# ============================================================
+
+# === SECRETS — NEVER PUSH ===
+secrets.txt
+*.env
+.env
+
+# === DATABASE (runtime state) ===
+*.db
+*.db-wal
+*.db-shm
+futures_engine.db
+
+# === LOG FILES ===
+*.log
+bot.log
+
+# === LOCK FILES ===
+*.lock
+
+# === PYTHON CACHE ===
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+
+# === VIRTUAL ENVIRONMENTS ===
+venv/
+env/
+.venv/
+
+# === DEPLOYMENT HELPERS (local only) ===
+fast_deploy.py
+force_restart_vps.py
+diagnose_vps.py
+clean_restart.py
+check_vps_status.py
+fix_vpn_guard.py
+fix_vpn_guard_vps.sh
+vps_patch_command.sh
+vps_block6_deploy.sh
+deploy_to_vps.py
+
+# === BACKUP FILES ===
+*.backup_*
+*.bak
+
+# === OS FILES ===
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# === IDE ===
+.vscode/
+.idea/
