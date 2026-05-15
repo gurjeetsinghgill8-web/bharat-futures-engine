@@ -61,7 +61,7 @@ def _tg_process_command(text, chat_id):
             pass
 
     if cmd == "/status":
-        mode     = db.get_param("trade_mode", "PAPER")
+        mode     = "LIVE"
         running  = db.get_param("algo_running", "OFF")
         syms     = db.get_all_symbols()
         sym_lines = ""
@@ -898,7 +898,7 @@ def main():
     if not db.get_param("trade_size"):       db.set_param("trade_size",       "1")
     if not db.get_param("sl_percent"):       db.set_param("sl_percent",       "2")
     if not db.get_param("cooldown_seconds"): db.set_param("cooldown_seconds", "300")
-    if not db.get_param("trade_mode"):       db.set_param("trade_mode",       "PAPER")
+    if not db.get_param("trade_mode"):       db.set_param("trade_mode",       "LIVE")
     if not db.get_param("timeframe"):        db.set_param("timeframe",        "5m")
     if not db.get_param("st_period"):        db.set_param("st_period",        "10")
     if not db.get_param("st_multiplier"):    db.set_param("st_multiplier",    "1.0")
@@ -906,7 +906,7 @@ def main():
     # AUTO-START: Engine runs immediately when bot starts
     db.set_param("algo_running", "ON")
 
-    mode = db.get_param("trade_mode", "PAPER")
+    mode = "LIVE"
     tf   = db.get_param("timeframe",  "5m")
     per  = db.get_param("st_period",  "10")
     mul  = db.get_param("st_multiplier", "1.0")
@@ -983,7 +983,7 @@ def main():
                 upnl      = db.get_param("unrealized_pnl", "0")
                 loss_pct  = db.get_param("current_loss_pct", "0.00")
                 active    = db.get_param("local_trade_active", "NO")
-                mode_now  = db.get_param("trade_mode", "PAPER")
+                mode_now  = "LIVE"
                 tf_now    = db.get_param("timeframe", "5m")
                 per_now   = db.get_param("st_period", "10")
                 mul_now   = db.get_param("st_multiplier", "1.0")

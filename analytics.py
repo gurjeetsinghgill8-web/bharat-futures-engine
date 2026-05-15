@@ -57,7 +57,7 @@ def get_exchange_fills(days=1, page_size=100):
       created_at, product_symbol, side, size, price,
       commission (brokerage paid), role (maker/taker)
     """
-    mode = db.get_param("trade_mode", "PAPER")
+    mode = "LIVE"
     if mode != "LIVE":
         return []   # No real fills in PAPER mode
 
@@ -168,5 +168,5 @@ def get_performance_summary(days=1):
     summary = calculate_performance(fills)
     summary["days"]       = days
     summary["fill_count"] = len(fills)
-    summary["mode"]       = db.get_param("trade_mode", "PAPER")
+    summary["mode"]       = "LIVE"
     return summary

@@ -433,7 +433,7 @@ with right:
     t1, t2 = st.columns(2)
     with t1:
         mode_sel = st.selectbox("Trade Mode", ["PAPER", "LIVE"],
-                                index=0 if trade_mode=="PAPER" else 1, key="mode")
+                                index=1, key="mode")
         qty_sel  = st.number_input("Trade Size (lots)", 1, 100,
                                    int(db.get_param("trade_size","1") or 1), 1, key="qty")
     with t2:
@@ -612,7 +612,7 @@ with st.expander("➕ Click to add a coin to portfolio"):
 st.divider()
 st.markdown("<div class='shdr'>📈 LIVE PERFORMANCE ANALYTICS</div>", unsafe_allow_html=True)
 
-cur_mode = db.get_param("trade_mode", "PAPER")
+cur_mode = "LIVE"
 
 if cur_mode != "LIVE":
     st.markdown(

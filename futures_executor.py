@@ -200,7 +200,7 @@ def execute_futures_trade(asset, direction):
     direction = "BUY"  → Open LONG  (price above anchor)
     direction = "SELL" → Open SHORT (price below anchor)
     """
-    mode = db.get_param('trade_mode', 'PAPER')
+    mode = "LIVE"
     qty  = int(db.get_param('trade_size', '1'))
 
     pid, symbol = get_futures_product_id(asset)
@@ -277,7 +277,7 @@ def execute_futures_trade(asset, direction):
 # ── SQUARE OFF ALL FUTURES ───────────────────────────────────
 def square_off_futures(target_pid=None, reason="Manual"):
     """Closes all open futures positions (or specific PID)."""
-    mode = db.get_param('trade_mode', 'PAPER')
+    mode = "LIVE"
     log_terminal(f"SQUARE OFF TRIGGERED: reason={reason}", "ALERT")
 
     if mode == "PAPER":
@@ -537,7 +537,7 @@ def execute_trade_for_symbol(delta_symbol, direction, lots, leverage=10):
         return False
 
     try:
-        mode = db.get_param("trade_mode", "PAPER")
+        mode = "LIVE"
         pid, sym = get_product_id_for_symbol(delta_symbol)
         side = "buy" if direction == "BUY" else "sell"
 
@@ -651,7 +651,7 @@ def square_off_symbol(delta_symbol, reason="Manual"):
     Writes to symbol_positions table (clears it).
     Does NOT affect other symbols or old BTC single-position params.
     """
-    mode = db.get_param("trade_mode", "PAPER")
+    mode = "LIVE"
     pos  = db.get_symbol_position(delta_symbol)
     log_terminal(f"[{delta_symbol}] SQUARE OFF: reason={reason}", "ALERT")
 
@@ -759,7 +759,7 @@ def check_symbol_lot_integrity():
         return   # Not time yet — check every 3 minutes
     _lot_check_last_run = now
 
-    mode = db.get_param("trade_mode", "PAPER")
+    mode = "LIVE"
     if mode == "PAPER":
         return
 
