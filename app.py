@@ -432,8 +432,10 @@ with right:
 
     t1, t2 = st.columns(2)
     with t1:
+        _cur_mode = db.get_param("trade_mode", "LIVE")
+        _mode_idx = 1 if _cur_mode == "LIVE" else 0
         mode_sel = st.selectbox("Trade Mode", ["PAPER", "LIVE"],
-                                index=1, key="mode")
+                                index=_mode_idx, key="mode")
         qty_sel  = st.number_input("Trade Size (lots)", 1, 100,
                                    int(db.get_param("trade_size","1") or 1), 1, key="qty")
     with t2:
@@ -460,11 +462,12 @@ with right:
     st.divider()
     st.markdown("<div class='shdr'>🔑 Manual Key Entry</div>", unsafe_allow_html=True)
     with st.expander("➕ Enter API Keys Manually (Optional)"):
-        st.markdown("<div style='color:#8b949e;font-size:12px;margin-bottom:8px;'>Yahan keys dalne ke baad SAVE karo</div>", unsafe_allow_html=True)
-        nk  = st.text_input("Delta API Key",       value=db.get_param("delta_api_key",""),     type="password", key="k1")
-        ns  = st.text_input("Delta API Secret",    value=db.get_param("delta_api_secret",""),  type="password", key="k2")
-        nt  = st.text_input("Telegram Bot Token",  value=db.get_param("telegram_bot_token",""),type="password", key="k3")
-        nc  = st.text_input("Telegram Chat ID",    value=db.get_param("telegram_chat_id",""),  key="k4")
+        st.markdown("<div style='color:#8b949e;font-size:12px;margin-bottom:12px;'>Yahan keys dalne ke baad SAVE karo</div>", unsafe_allow_html=True)
+        nk = st.text_input("Delta API Key",      value=db.get_param("delta_api_key",""),      type="password", key="k1")
+        ns = st.text_input("Delta API Secret",   value=db.get_param("delta_api_secret",""),   type="password", key="k2")
+        nt = st.text_input("Telegram Bot Token", value=db.get_param("telegram_bot_token",""), type="password", key="k3")
+        nc = st.text_input("Telegram Chat ID",   value=db.get_param("telegram_chat_id",""),   key="k4")
+        st.markdown("")
         if st.button("💾 SAVE KEYS", key="btn_keys"):
             db.set_param("delta_api_key",      nk)
             db.set_param("delta_api_secret",   ns)
@@ -591,19 +594,21 @@ with st.expander("➕ Click to add a coin to portfolio"):
             st.rerun()
 
     # ── Enable / Disable toggle ───────────────────────────────
-    st.markdown("<div class='shdr'>⚡ Enable / Disable Individual Symbols</div>", unsafe_allow_html=True)
-    tog_cols = st.columns(min(len(all_syms), 5))
-    for i, s in enumerate(all_syms):
-        with tog_cols[i % 5]:
-            cur_en  = s["enabled"]
-            btn_lbl = f"{'🟢' if cur_en else '🔴'} {s['symbol']}"
-            if st.button(btn_lbl, key=f"tog_{s['symbol']}"):
-                db.add_symbol(
-                    s["symbol"], s["timeframe"], s["st_period"],
-                    s["st_multiplier"], s["lots"],
-                    0 if cur_en else 1          # flip enabled state
-                )
-                st.rerun()
+    if all_syms:
+        st.markdown("<div class='shdr'>⚡ Enable / Disable Individual Symbols</div>", unsafe_allow_html=True)
+        n_cols = max(1, min(len(all_syms), 5))
+        tog_cols = st.columns(n_cols)
+        for i, s in enumerate(all_syms):
+            with tog_cols[i % n_cols]:
+                cur_en  = s["enabled"]
+                btn_lbl = f"{'ON' if cur_en else 'OFF'} {s['symbol']}"
+                if st.button(btn_lbl, key=f"tog_{s['symbol']}"):
+                    db.add_symbol(
+                        s["symbol"], s["timeframe"], s["st_period"],
+                        s["st_multiplier"], s["lots"],
+                        0 if cur_en else 1
+                    )
+                    st.rerun()
 
 
 # ══════════════════════════════════════════════════════════════
