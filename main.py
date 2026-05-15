@@ -3,7 +3,7 @@ BHARAT FUTURES ENGINE — SUPERTREND SIGNAL ENGINE
 =================================================
 Instrument : BTC Perpetual Futures (Delta Exchange)
 Indicator  : SuperTrend ONLY
-Default    : 5-min candles | Period=10 | Multiplier=1
+Default    : 15-min candles | Period=10 | Multiplier=1
 Signal     : Candle CLOSE based (no anticipation)
   SuperTrend GREEN (Up)   → BUY  (Long Futures)
   SuperTrend RED   (Down) → SELL (Short Futures)
@@ -400,7 +400,7 @@ def calculate_supertrend(df, period=10, multiplier=1.0):
     return df
 
 # ── FETCH CANDLES FROM DELTA EXCHANGE ───────────────────────
-def fetch_candles(timeframe="5m", limit=150):
+def fetch_candles(timeframe="15m", limit=150):
     """
     Fetches BTC OHLC candles from Delta Exchange.
     CONFIRMED WORKING: resolution must be '1m','5m','15m' etc (with 'm')
@@ -471,7 +471,7 @@ def get_supertrend_signal():
     Returns: (signal, st_value, confirmed_close, confirmed_candle_time)
       signal = "BUY" | "SELL" | None
     """
-    timeframe  = db.get_param("timeframe",  "5m")
+    timeframe  = db.get_param("timeframe",  "15m")   # DEFAULT: 15m confirmed candle
     period     = int(db.get_param("st_period",     "10")  or "10")
     multiplier = float(db.get_param("st_multiplier", "1.0") or "1.0")
 
@@ -809,17 +809,18 @@ def run_portfolio_loop():
                     f"Closing {active_qty} lot(s) first..."
                 )
                 futures_executor.square_off_symbol(symbol, reason=f"Flip to {signal}")
-                time.sleep(2)
+                time.sleep(6)   # Give exchange 6 seconds to process the close
 
                 # Confirm flat before entering new direction
                 futures_executor.sync_position_for_symbol(symbol)
                 pos_check = db.get_symbol_position(symbol)
                 if pos_check and pos_check["active"]:
+                    # Force-clear DB if exchange confirms flat but DB is stale
+                    db.update_symbol_position(symbol, "NONE", 0.0, 0, 0)
                     log_terminal(
-                        f"[{symbol}] Not fully closed yet. Skipping entry this candle.",
+                        f"[{symbol}] DB force-cleared. Proceeding with {signal} entry.",
                         "ALERT"
                     )
-                    continue
 
                 # Atomic DB lock — blocks duplicate entry from any 2nd process
                 if not db.acquire_trade_lock(symbol, latest_closed_ts):

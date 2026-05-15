@@ -183,13 +183,21 @@ def get_supertrend_signal_for_symbol(symbol, timeframe="5m",
         return None, 0.0, 0.0, 0
 
     # Step 1: Drop the forming (rightmost) candle
+    # Raw feed : [..., C-2, C-1, C0(forming)]
+    # After drop: [..., C-2, C-1]   ← iloc[:-1] removes forming candle
     df_closed = df.iloc[:-1].copy()
 
     # Step 2: Run SuperTrend on all closed candles
     df_st = calculate_supertrend(df_closed, period=period, multiplier=multiplier)
 
-    # Step 3: Use iloc[-2] — fully confirmed candle (never repaints)
-    confirmed = df_st.iloc[-2]
+    # Step 3: Use iloc[-1] — the last FULLY CLOSED candle.
+    # WHY iloc[-1] and NOT iloc[-2]:
+    #   df_closed already has the forming candle removed.
+    #   iloc[-1] on df_closed = the last fully closed bar (zero repaint risk).
+    #   iloc[-2] was ONE extra candle behind → signal lag of one full TF period.
+    #   That lag caused price to cross ST line while bot stayed in wrong direction.
+    #   BTC loop in main.py uses iloc[-1] — this must match exactly.
+    confirmed = df_st.iloc[-1]
 
     direction  = int(confirmed['direction'])
     st_value   = float(confirmed['supertrend'])

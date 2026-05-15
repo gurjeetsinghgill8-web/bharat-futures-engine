@@ -682,28 +682,44 @@ def square_off_symbol(delta_symbol, reason="Manual"):
         return True
 
     # LIVE mode
+    # FIX: Do NOT use ?underlying_asset_symbol={asset} — asset extraction breaks
+    # exotic symbols (e.g. BEATUSD → 'BEAT' not recognized by Delta).
+    # Instead: fetch ALL positions and match by exact symbol name.
     pid, sym = get_product_id_for_symbol(delta_symbol)
     if not pid:
         db.update_symbol_position(delta_symbol, "NONE", 0.0, 0, 0)
         return False
 
-    asset = delta_symbol.upper().replace("USD", "").replace("PERP", "")
     closed_dir = (pos["direction"] if pos else None)
     try:
+        # Fetch ALL open positions — no broken asset extraction
         path  = "/v2/positions"
-        query = f"?underlying_asset_symbol={asset}"
-        hdrs  = get_delta_auth_headers("GET", path, query_string=query)
-        r     = requests.get(f"{BASE_URL}{path}{query}", headers=hdrs, timeout=10)
+        hdrs  = get_delta_auth_headers("GET", path, query_string="")
+        r     = requests.get(f"{BASE_URL}{path}", headers=hdrs, timeout=10)
+
+        # Fallback to margined endpoint
+        if r.status_code not in [200, 201]:
+            path = "/v2/positions/margined"
+            hdrs = get_delta_auth_headers("GET", path, query_string="")
+            r    = requests.get(f"{BASE_URL}{path}", headers=hdrs, timeout=10)
+
         raw_size = 0
         if r.status_code == 200:
             for p in r.json().get("result", []):
-                if (p.get("product", {}).get("symbol") or "").upper() == delta_symbol.upper():
-                    raw_size = float(p.get("size", 0))
+                sym_chk = (
+                    p.get("product", {}).get("symbol") or
+                    p.get("symbol") or ""
+                ).upper()
+                if sym_chk == delta_symbol.upper():
+                    raw_size   = float(p.get("size", 0))
                     closed_dir = "BUY" if raw_size > 0 else "SELL"
                     break
+
         if raw_size == 0:
+            log_terminal(f"[{delta_symbol}] Already FLAT on exchange. Clearing DB.", "INFO")
             db.update_symbol_position(delta_symbol, "NONE", 0.0, 0, 0)
             return True
+
         close_side = "sell" if raw_size > 0 else "buy"
         payload_dict = {
             "product_id":  int(pid),
@@ -719,10 +735,10 @@ def square_off_symbol(delta_symbol, reason="Manual"):
             data=payload, timeout=10
         )
         if resp2.status_code in [200, 201]:
-            log_terminal(f"[{delta_symbol}] CLOSED OK ({close_side})", "TRADE")
+            log_terminal(f"[{delta_symbol}] CLOSED OK ({close_side} {int(abs(raw_size))} lots)", "TRADE")
             send_close_alert(delta_symbol, reason=reason, direction=closed_dir)
         else:
-            log_terminal(f"[{delta_symbol}] CLOSE FAILED: {resp2.status_code}", "ERROR")
+            log_terminal(f"[{delta_symbol}] CLOSE FAILED: {resp2.status_code} — {resp2.text[:150]}", "ERROR")
     except Exception as e:
         log_terminal(f"[{delta_symbol}] CLOSE EXCEPTION: {e}", "ERROR")
 
@@ -854,36 +870,34 @@ def check_symbol_lot_integrity():
                 # Reset candle ts so bot re-enters on next candle
                 db.set_param(f"candle_ts_{symbol}", "0")
 
-            # ── Case 2: CORRECT SIZE — just sync DB ────────────────────
+            # ── Case 2: CORRECT SIZE — sync DB and continue ────────────
             elif abs_live == cfg_lots:
-                avgl(
-                    f"[LOT CHECK:{symbol}] ⚠️ LIMIT EXCEEDED! "
-                    f"Exchange={abs_live} lots | Configured={cfg_lots} lots. "
-                    f"DISABLING symbol.",
-                    "ALERT"
-                )
-                db.add_symbol(
-                    symbol,
-                    timeframe=sym_cfg["timeframe"],
-                    st_period=sym_cfg["st_period"],
-                    st_multiplier=sym_cfg["st_multiplier"],
-                    lots=sym_cfg["lots"],
-                    enabled=0    # ← DISABLE
-                )
-                send_telegram_msg(
-                    f"\u26a0\ufe0f <b>LOT LIMIT EXCEEDED — {symbol} DISABLED</b>\n"
-                    f"\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\u2500\n"
-                    f"Exchange lots : <b>{abs_live}</b> ({live_dir})\n"
-                    f"Configured max: <b>{cfg_lots}</b>\n"
-                    f"Action : Symbol AUTO-DISABLED.\n"
-                    f"Please manually close excess lots and re-enable.",
-                    parse_mode="HTML"
-                )
-            else:
+                # Position is exactly the right size — just sync DB
+                sync_position_for_symbol(symbol)
                 log_terminal(
-                    f"[LOT CHECK:{symbol}] OK — Exchange={abs_live} lots {live_dir} | Configured={cfg_lots}",
+                    f"[GUARDIAN:{symbol}] ✅ OK — Exchange={abs_live} lots {live_dir} | "
+                    f"Configured={cfg_lots}. DB synced.",
                     "INFO"
                 )
+
+            else:
+                # abs_live == 0 — exchange is flat
+                db_pos = db.get_symbol_position(symbol)
+                if db_pos and db_pos["active"]:
+                    log_terminal(
+                        f"[GUARDIAN:{symbol}] 🧹 ZOMBIE: DB=active but Exchange=FLAT. Clearing DB.",
+                        "ALERT"
+                    )
+                    db.update_symbol_position(symbol, "NONE", 0.0, 0, 0, 0)
+                    send_telegram_msg(
+                        f"🧹 ZOMBIE CLEARED: {symbol}\n"
+                        f"Exchange was FLAT but DB showed active. DB reset."
+                    )
+                else:
+                    log_terminal(
+                        f"[GUARDIAN:{symbol}] OK — FLAT on both exchange and DB.",
+                        "INFO"
+                    )
 
         except Exception as e:
             log_terminal(f"[LOT CHECK:{symbol}] Error: {e}", "ERROR")
