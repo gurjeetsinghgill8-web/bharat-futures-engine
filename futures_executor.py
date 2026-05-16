@@ -448,76 +448,60 @@ def get_product_id_for_symbol(delta_symbol):
 
 
 def sync_position_for_symbol(delta_symbol):
-    """
-    Syncs the live exchange position for ONE symbol into the
-    symbol_positions table (BRICK 1).
-
-    ROOT CAUSE FIX:
-    Old code: extracted asset by removing 'USD' (BBUSD → 'BB')
-    Delta Exchange doesn't recognise 'BB' as an underlying asset.
-    API returned empty list → bot always saw FLAT → re-entered every candle.
-
-    New code: fetches ALL open positions, matches by EXACT symbol name.
-    Works for BBUSD, COAIUSD, INJUSD — any symbol, no extraction needed.
-    """
+    """Syncs live exchange position. Checks BOTH isolated AND cross-margin."""
     api_key = db.get_param("delta_api_key", "")
     if not api_key:
         return False
 
-    path  = "/v2/positions/margined"   # fetch ALL open positions at once
-    query = ""
+    direction = "NONE"; entry_px = 0.0; qty = 0; active_int = 0
+
     try:
-        hdrs = get_delta_auth_headers("GET", path, query_string=query)
+        # Step 1: isolated margin
+        path = "/v2/positions/margined"
+        hdrs = get_delta_auth_headers("GET", path, query_string="")
         resp = requests.get(f"{BASE_URL}{path}", headers=hdrs, timeout=10)
+        if resp.status_code == 200:
+            for p in resp.json().get("result", []):
+                sym_chk = (p.get("product", {}).get("symbol") or "").upper()
+                if sym_chk != delta_symbol.upper(): continue
+                size = float(p.get("size", 0))
+                if size == 0: continue
+                direction = "BUY" if size > 0 else "SELL"
+                entry_px  = float(p.get("avg_entry_price", 0))
+                qty       = abs(int(size)); active_int = 1
+                print(f"[SYNC:{delta_symbol}] ISOLATED: {direction} {qty}lots @ {entry_px}")
+                break
 
-        # Fallback to /v2/positions if margined endpoint unavailable
-        if resp.status_code not in [200, 201]:
-            path  = "/v2/positions"
-            query = ""
-            hdrs  = get_delta_auth_headers("GET", path, query_string=query)
-            resp  = requests.get(f"{BASE_URL}{path}", headers=hdrs, timeout=10)
-
-        if resp.status_code not in [200, 201]:
-            print(f"[SYNC:{delta_symbol}] Both position endpoints failed: {resp.status_code}")
-            return False
-
-        direction  = "NONE"
-        entry_px   = 0.0
-        qty        = 0
-        active_int = 0
-
-        for p in resp.json().get("result", []):
-            # Match by EXACT symbol name — no asset extraction
-            sym_chk = (
-                p.get("product", {}).get("symbol") or
-                p.get("symbol") or ""
-            ).upper()
-            if sym_chk != delta_symbol.upper():
-                continue
-            size = float(p.get("size", 0))
-            if size == 0:
-                continue
-            direction  = "BUY" if size > 0 else "SELL"
-            entry_px   = float(p.get("avg_entry_price", 0))
-            qty        = abs(int(size))
-            active_int = 1
-            print(f"[SYNC:{delta_symbol}] Found: {direction} {qty} lots @ {entry_px}")
-            break
+        # Step 2: cross-margin via product_id (Delta India requires product_id param!)
+        if active_int == 0:
+            pid, _ = get_product_id_for_symbol(delta_symbol)
+            if pid:
+                qs   = f"product_id={pid}"
+                path = "/v2/positions"
+                hdrs = get_delta_auth_headers("GET", path, query_string=f"?{qs}")
+                resp = requests.get(f"{BASE_URL}{path}?{qs}", headers=hdrs, timeout=10)
+                if resp.status_code == 200:
+                    for p in resp.json().get("result", []):
+                        sym_chk = (p.get("product", {}).get("symbol") or "").upper()
+                        if sym_chk != delta_symbol.upper(): continue
+                        size = float(p.get("size", 0))
+                        if size == 0: continue
+                        direction = "BUY" if size > 0 else "SELL"
+                        entry_px  = float(p.get("avg_entry_price", 0))
+                        qty       = abs(int(size)); active_int = 1
+                        print(f"[SYNC:{delta_symbol}] CROSS: {direction} {qty}lots @ {entry_px}")
+                        break
 
         if active_int == 0:
-            print(f"[SYNC:{delta_symbol}] No open position on exchange — FLAT")
+            print(f"[SYNC:{delta_symbol}] FLAT (checked isolated + cross-margin)")
 
-        db.update_symbol_position(
-            delta_symbol,
-            direction=direction,
-            entry_price=entry_px,
-            qty=qty,
-            active=active_int,
-            last_candle_ts=int(
-                db.get_symbol_position(delta_symbol)["last_candle_ts"]
-                if db.get_symbol_position(delta_symbol) else 0
-            )
-        )
+        try:
+            lt = db.get_symbol_position(delta_symbol)
+            last_ts = lt["last_candle_ts"] if lt else 0
+        except Exception:
+            last_ts = 0
+        db.update_symbol_position(delta_symbol, direction=direction,
+            entry_price=entry_px, qty=qty, active=active_int, last_candle_ts=int(last_ts))
         return True
     except Exception as e:
         print(f"[SYNC:{delta_symbol}] Exception: {e}")
@@ -820,37 +804,17 @@ def check_symbol_lot_integrity():
     if not enabled:
         return
 
-    log_terminal("[GUARDIAN] Running 3-min position integrity check...", "INFO")
-
-    # ── Fetch ALL open positions — try margined first, fallback to regular ──
-    try:
-        for path in ["/v2/positions/margined", "/v2/positions"]:
-            hdrs = get_delta_auth_headers("GET", path, query_string="")
-            resp = requests.get(f"{BASE_URL}{path}", headers=hdrs, timeout=10)
-            if resp.status_code == 200:
-                break
-            log_terminal(f"[GUARDIAN] {path} failed: {resp.status_code} — trying fallback", "WARN")
-        else:
-            log_terminal(f"[GUARDIAN] All position endpoints failed: {resp.status_code}", "WARN")
-            return
-        all_positions = {
-            (p.get("product", {}).get("symbol") or "").upper(): p
-            for p in resp.json().get("result", [])
-            if abs(float(p.get("size", 0))) > 0
-        }
-    except Exception as e:
-        log_terminal(f"[GUARDIAN] Fetch exception: {e}", "WARN")
-        return
+    log_terminal("[GUARDIAN] Checking positions per-symbol (isolated+cross)...", "INFO")
 
     for sym_cfg in enabled:
         symbol   = sym_cfg["symbol"].upper()
         cfg_lots = sym_cfg["lots"]
 
         try:
-            live_pos  = all_positions.get(symbol)
-            live_size = float(live_pos.get("size", 0)) if live_pos else 0.0
-            abs_live  = abs(int(live_size))
-            live_dir  = "BUY" if live_size > 0 else ("SELL" if live_size < 0 else "NONE")
+            sync_position_for_symbol(symbol)
+            pos      = db.get_symbol_position(symbol)
+            abs_live = pos["qty"]       if (pos and pos["active"]) else 0
+            live_dir = pos["direction"] if pos else "NONE"
 
             # ── Case 1: EXCESS LOTS — close ALL immediately ────────────
             if abs_live > cfg_lots:

@@ -684,7 +684,62 @@ def run_supertrend_loop():
 # Uses exact same logic as BTC run_supertrend_loop() — proven and stable.
 # BTC is NOT handled here — it stays in run_supertrend_loop() above.
 # ══════════════════════════════════════════════════════════════
+_pulse_last_sent = 0
+PULSE_INTERVAL   = 300   # every 5 minutes
+
+def send_portfolio_pulse():
+    """Sends a detailed per-coin status to Telegram every 5 minutes."""
+    global _pulse_last_sent
+    now = time.time()
+    if now - _pulse_last_sent < PULSE_INTERVAL:
+        return
+    _pulse_last_sent = now
+
+    import supertrend as _st
+    symbols = db.get_all_symbols()
+    enabled = [s for s in symbols if s["enabled"]]
+    if not enabled:
+        return
+
+    timeframe  = db.get_param("timeframe", "15m")
+    period     = int(db.get_param("st_period", "10") or "10")
+    multiplier = float(db.get_param("st_multiplier", "1.0") or "1.0")
+
+    lines = [f"\U0001f4ca BHARAT PORTFOLIO PULSE\nTF:{timeframe} P={period} M={multiplier}\n{'-'*30}"]
+    for s in enabled:
+        sym = s["symbol"]
+        try:
+            _, st_val, _, _ = _st.get_supertrend_signal_for_symbol(
+                sym, timeframe=s.get("timeframe", timeframe),
+                period=s.get("st_period", period),
+                multiplier=s.get("st_multiplier", multiplier)
+            )
+            close_5m, _ = _st.get_5m_close_for_symbol(sym)
+            if close_5m and st_val:
+                gap  = (close_5m - st_val) / st_val * 100
+                sig  = "BUY \u25b2" if close_5m > st_val else "SELL \u25bc"
+            else:
+                gap = 0; sig = "?"
+            pos   = db.get_symbol_position(sym)
+            p_dir = pos["direction"] if (pos and pos["active"]) else "FLAT"
+            p_qty = pos["qty"]       if (pos and pos["active"]) else 0
+            p_ep  = pos["entry_price"] if (pos and pos["active"]) else 0
+            match = "\u2705" if (p_dir == "FLAT" or sig.startswith(p_dir)) else "\u274c WRONG DIR!"
+            lines.append(
+                f"\n{sym}:\n"
+                f"  5m Close : {close_5m:.5f}\n"
+                f"  ST({s.get('timeframe',timeframe)}) : {st_val:.5f}\n"
+                f"  Gap      : {gap:+.3f}%\n"
+                f"  Signal   : {sig}\n"
+                f"  Position : {p_dir} {p_qty}lot @ {p_ep:.5f}  {match}"
+            )
+        except Exception as e:
+            lines.append(f"\n{sym}: ERROR {e}")
+
+    send_telegram_msg("\n".join(lines))
+
 def run_portfolio_loop():
+
     """
     Runs SuperTrend trading logic for every coin in the portfolio (symbols table).
     Coins are added/removed via Telegram: /add SOLUSD, /remove SOLUSD.
@@ -972,8 +1027,7 @@ def main():
             # BTC loop DISABLED — only portfolio coins trade
             # run_supertrend_loop()  # <-- REMOVED
             run_portfolio_loop()           # Portfolio coins only
-            # check_sl()            # <-- BTC-only, REMOVED
-            # check_zombie_lock()   # <-- BTC-only, REMOVED
+            send_portfolio_pulse()         # Detailed Telegram update every 5min
             futures_executor.check_symbol_lot_integrity()   # Guardian
 
             # Dashboard settings watcher
