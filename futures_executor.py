@@ -615,14 +615,21 @@ def execute_trade_for_symbol(delta_symbol, direction, lots, leverage=10):
                 )
                 if resp.status_code in [200, 201]:
                     log_terminal(f"[{sym}] ENTRY SUCCESS: {side.upper()} {lots} lots", "TRADE")
-                    # COLOR-CODED Telegram alert
+                    # Fetch real entry price from mark price
+                    real_entry = 0.0
+                    try:
+                        tr = requests.get(f"{BASE_URL}/v2/tickers/{sym}", timeout=5)
+                        if tr.status_code == 200:
+                            real_entry = float(tr.json().get("result", {}).get("mark_price") or 0.0)
+                    except Exception:
+                        pass
                     send_trade_alert(
                         symbol=sym, action=direction,
                         lots=lots, leverage=leverage, mode="LIVE"
                     )
                     db.update_symbol_position(
                         sym, direction=direction,
-                        entry_price=0.0, qty=lots, active=1
+                        entry_price=real_entry, qty=lots, active=1
                     )
                     import time as _time
                     _time.sleep(1)
@@ -815,12 +822,16 @@ def check_symbol_lot_integrity():
 
     log_terminal("[GUARDIAN] Running 3-min position integrity check...", "INFO")
 
-    # ── Fetch ALL open positions in ONE call (no broken asset extraction) ──
+    # ── Fetch ALL open positions — try margined first, fallback to regular ──
     try:
-        hdrs = get_delta_auth_headers("GET", "/v2/positions", query_string="")
-        resp = requests.get(f"{BASE_URL}/v2/positions", headers=hdrs, timeout=10)
-        if resp.status_code != 200:
-            log_terminal(f"[GUARDIAN] Position fetch failed: {resp.status_code}", "WARN")
+        for path in ["/v2/positions/margined", "/v2/positions"]:
+            hdrs = get_delta_auth_headers("GET", path, query_string="")
+            resp = requests.get(f"{BASE_URL}{path}", headers=hdrs, timeout=10)
+            if resp.status_code == 200:
+                break
+            log_terminal(f"[GUARDIAN] {path} failed: {resp.status_code} — trying fallback", "WARN")
+        else:
+            log_terminal(f"[GUARDIAN] All position endpoints failed: {resp.status_code}", "WARN")
             return
         all_positions = {
             (p.get("product", {}).get("symbol") or "").upper(): p

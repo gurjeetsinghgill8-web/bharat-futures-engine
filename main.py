@@ -764,6 +764,17 @@ def run_portfolio_loop():
                 continue
 
             # ── STEP 3: Determine signal from price vs ST anchor ─────────
+            # Buffer zone: if price is within 0.1% of ST, hold — avoids flip-flop
+            buffer_pct = 0.001   # 0.1%
+            gap = abs(close_5m - st_val) / st_val if st_val > 0 else 1.0
+            if gap < buffer_pct:
+                log_terminal(
+                    f"[{symbol}] BUFFER ZONE: 5m_close={close_5m:.4f} within "
+                    f"0.1% of ST={st_val:.4f}. Holding current position.",
+                    "INFO"
+                )
+                continue
+
             signal = "BUY" if close_5m > st_val else "SELL"
 
             # Log every cycle — user can see exactly what's happening
@@ -771,11 +782,12 @@ def run_portfolio_loop():
             p_dir   = pos_now["direction"] if (pos_now and pos_now["active"]) else "FLAT"
             log_terminal(
                 f"[{symbol}] 5m_close={close_5m:.4f} | ST({timeframe})={st_val:.4f} | "
-                f"Signal={signal} | Position={p_dir}",
+                f"Gap={gap*100:.3f}% | Signal={signal} | Position={p_dir}",
                 "INFO"
             )
 
             # ── STEP 4: 5-minute candle-change guard ─────────────────────
+
             # Guard key uses "5m_" prefix — separate from ST TF guard
             guard_key = f"5m_{symbol}"
             last_ts   = _get_symbol_candle_ts(guard_key)
