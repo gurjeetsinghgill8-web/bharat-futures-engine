@@ -570,10 +570,16 @@ with st.expander("Click to Add a Coin to Portfolio", expanded=True):
     )
     add_c1, add_c2, add_c3 = st.columns([2, 1, 1])
     with add_c1:
-        new_sym = st.text_input(
+        # Auto-uppercase: show what they typed but store as uppercase
+        raw_sym = st.text_input(
             "Symbol (e.g. ETHUSD)", value="", key="b5_sym",
-            placeholder="ETHUSD"
-        ).strip().upper()
+            placeholder="ETHUSD",
+            help="Type any symbol — it auto-converts to UPPERCASE"
+        )
+        new_sym = raw_sym.strip().upper()
+        if raw_sym and raw_sym != raw_sym.upper():
+            st.caption(f"Will use: **{new_sym}**")
+
     with add_c2:
         new_lots = st.number_input("Lots", min_value=1, max_value=50, value=1, step=1, key="b5_lots")
     with add_c3:

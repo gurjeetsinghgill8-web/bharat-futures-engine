@@ -435,7 +435,15 @@ def get_product_id_for_symbol(delta_symbol):
                         return pid, sym
         except Exception as e:
             print(f"[SYMBOLS] product_id lookup error: {e}")
+    # Symbol not found on Delta Exchange
+    err_msg = (
+        f"❌ SYMBOL NOT FOUND ON DELTA\n"
+        f"Symbol: {delta_symbol}\n"
+        f"Reason: Not listed as perpetual futures on Delta Exchange India\n"
+        f"Fix: Check exact symbol name at india.delta.exchange"
+    )
     print(f"[SYMBOLS] Could not find PID for {delta_symbol}")
+    send_telegram_msg(err_msg)
     return None, delta_symbol
 
 
@@ -581,9 +589,19 @@ def execute_trade_for_symbol(delta_symbol, direction, lots, leverage=10):
         )
 
         if mode == "LIVE":
-            if pid:
-                set_leverage(pid, leverage)
+            if not pid:
+                err = (
+                    f"\u274c TRADE BLOCKED: {delta_symbol}\n"
+                    f"Reason: Symbol not found on Delta Exchange India\n"
+                    f"Symbol '{delta_symbol}' may not exist or be delisted\n"
+                    f"Fix: Use exact symbol from india.delta.exchange"
+                )
+                log_terminal(f"[{delta_symbol}] PID=None — symbol not on exchange.", "ERROR")
+                send_telegram_msg(err)
+                return False
+            set_leverage(pid, leverage)
             try:
+
                 payload_dict = {
                     "product_id": int(pid),
                     "size":       lots,
@@ -611,7 +629,14 @@ def execute_trade_for_symbol(delta_symbol, direction, lots, leverage=10):
                     sync_position_for_symbol(sym)
                     return True
                 else:
-                    log_terminal(f"[{sym}] ENTRY FAILED: {resp.status_code} {resp.text[:150]}", "ERROR")
+                    err_body = resp.text[:300]
+                    log_terminal(f"[{sym}] ENTRY FAILED: {resp.status_code} {err_body}", "ERROR")
+                    send_telegram_msg(
+                        f"\u274c TRADE FAILED: {sym}\n"
+                        f"Action: {side.upper()} {lots} lots\n"
+                        f"Error : {resp.status_code}\n"
+                        f"Detail: {err_body[:200]}"
+                    )
                     return False
             except Exception as e:
                 log_terminal(f"[{sym}] ENTRY EXCEPTION: {e}", "ERROR")
