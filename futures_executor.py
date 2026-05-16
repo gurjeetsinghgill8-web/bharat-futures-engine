@@ -455,34 +455,48 @@ def sync_position_for_symbol(delta_symbol):
 
     direction = "NONE"; entry_px = 0.0; qty = 0; active_int = 0
 
+    def _parse_pos(p, sym):
+        """Safely parse a position dict. Returns (dir, entry, qty, found)."""
+        if not isinstance(p, dict):
+            return "NONE", 0.0, 0, False
+        s = float(p.get("size", 0) or 0)
+        if abs(s) == 0:
+            return "NONE", 0.0, 0, False
+        sym_chk = (p.get("product", {}).get("symbol") if isinstance(p.get("product"), dict) else "") or ""
+        if sym_chk.upper() != sym.upper():
+            return "NONE", 0.0, 0, False
+        d = "BUY" if s > 0 else "SELL"
+        ep = float(p.get("avg_entry_price", 0) or 0)
+        return d, ep, abs(int(s)), True
+
     try:
-        # Step 1: isolated margin
+        # Step 1: isolated margin positions
         path = "/v2/positions/margined"
         hdrs = get_delta_auth_headers("GET", path, query_string="")
         resp = requests.get(f"{BASE_URL}{path}", headers=hdrs, timeout=10)
         if resp.status_code == 200:
-            for p in resp.json().get("result", []):
-                sym_chk = (p.get("product", {}).get("symbol") or "").upper()
-                if sym_chk != delta_symbol.upper(): continue
-                size = float(p.get("size", 0))
-                if size == 0: continue
-                direction = "BUY" if size > 0 else "SELL"
-                entry_px  = float(p.get("avg_entry_price", 0))
-                qty       = abs(int(size)); active_int = 1
-                print(f"[SYNC:{delta_symbol}] ISOLATED: {direction} {qty}lots @ {entry_px}")
-                break
+            result = resp.json()
+            items  = result.get("result", []) if isinstance(result, dict) else []
+            for p in items:
+                d, ep, q, found = _parse_pos(p, delta_symbol)
+                if found:
+                    direction = d; entry_px = ep; qty = q; active_int = 1
+                    print(f"[SYNC:{delta_symbol}] ISOLATED: {direction} {qty}lots @ {entry_px}")
+                    break
 
-        # Step 2: cross-margin via product_id (silent lookup — no Telegram spam)
+        # Step 2: cross-margin via product_id
         if active_int == 0:
+            pid = None
             try:
                 rp = requests.get(
                     f"{BASE_URL}/v2/products?contract_types=perpetual_futures",
                     timeout=10
                 )
-                pid = None
                 if rp.status_code == 200:
-                    for pr in rp.json().get("result", []):
-                        if pr.get("symbol", "").upper() == delta_symbol.upper():
+                    res2 = rp.json()
+                    prods = res2.get("result", []) if isinstance(res2, dict) else []
+                    for pr in prods:
+                        if isinstance(pr, dict) and pr.get("symbol", "").upper() == delta_symbol.upper():
                             pid = pr.get("id")
                             break
             except Exception:
@@ -493,27 +507,25 @@ def sync_position_for_symbol(delta_symbol):
                 hdrs = get_delta_auth_headers("GET", path, query_string=f"?{qs}")
                 resp = requests.get(f"{BASE_URL}{path}?{qs}", headers=hdrs, timeout=10)
                 if resp.status_code == 200:
-                    for p in resp.json().get("result", []):
-                        sym_chk = (p.get("product", {}).get("symbol") or "").upper()
-                        if sym_chk != delta_symbol.upper(): continue
-                        size = float(p.get("size", 0))
-                        if size == 0: continue
-                        direction = "BUY" if size > 0 else "SELL"
-                        entry_px  = float(p.get("avg_entry_price", 0))
-                        qty       = abs(int(size)); active_int = 1
-                        print(f"[SYNC:{delta_symbol}] CROSS: {direction} {qty}lots @ {entry_px}")
-                        break
+                    res3  = resp.json()
+                    items = res3.get("result", []) if isinstance(res3, dict) else []
+                    for p in items:
+                        d, ep, q, found = _parse_pos(p, delta_symbol)
+                        if found:
+                            direction = d; entry_px = ep; qty = q; active_int = 1
+                            print(f"[SYNC:{delta_symbol}] CROSS: {direction} {qty}lots @ {entry_px}")
+                            break
 
         if active_int == 0:
-            print(f"[SYNC:{delta_symbol}] FLAT (checked isolated + cross-margin)")
+            print(f"[SYNC:{delta_symbol}] FLAT (isolated+cross checked)")
 
         try:
             lt = db.get_symbol_position(delta_symbol)
-            last_ts = lt["last_candle_ts"] if lt else 0
+            last_ts = int(lt["last_candle_ts"]) if isinstance(lt, dict) else 0
         except Exception:
             last_ts = 0
         db.update_symbol_position(delta_symbol, direction=direction,
-            entry_price=entry_px, qty=qty, active=active_int, last_candle_ts=int(last_ts))
+            entry_price=entry_px, qty=qty, active=active_int, last_candle_ts=last_ts)
         return True
     except Exception as e:
         print(f"[SYNC:{delta_symbol}] Exception: {e}")
