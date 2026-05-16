@@ -793,7 +793,6 @@ def run_portfolio_loop():
                     "WARN"
                 )
                 continue
-
             import supertrend as _st
 
             # ── STEP 1: Get SuperTrend VALUE from configured TF (anchor) ─
@@ -832,51 +831,34 @@ def run_portfolio_loop():
 
             signal = "BUY" if close_5m > st_val else "SELL"
 
-            # Log every cycle — user can see exactly what's happening
-            pos_now = db.get_symbol_position(symbol)
-            p_dir   = pos_now["direction"] if (pos_now and pos_now["active"]) else "FLAT"
-            log_terminal(
-                f"[{symbol}] 5m_close={close_5m:.4f} | ST({timeframe})={st_val:.4f} | "
-                f"Gap={gap*100:.3f}% | Signal={signal} | Position={p_dir}",
-                "INFO"
-            )
 
-            # ── STEP 4: 5-minute candle-change guard ─────────────────────
-
-            # Guard key uses "5m_" prefix — separate from ST TF guard
-            guard_key = f"5m_{symbol}"
-            last_ts   = _get_symbol_candle_ts(guard_key)
-
-            if last_ts == 0:
-                log_terminal(
-                    f"[{symbol}] FIRST RUN — recording 5m ts={ts_5m}. "
-                    f"Will act on NEXT 5-minute candle close.",
-                    "INFO"
-                )
-                _set_symbol_candle_ts(guard_key, ts_5m)
-                continue
-
-            if ts_5m != 0 and ts_5m <= last_ts:
-                # Same 5m candle — no action needed
-                continue
-
-            # New 5m candle — update guard, sync exchange, then trade
-            _set_symbol_candle_ts(guard_key, ts_5m)
-
-            log_terminal(
-                f"[{symbol}] NEW 5m CANDLE | 5m_close={close_5m:.4f} | ST({timeframe})={st_val:.4f} | Signal={signal}",
-                "INFO"
-            )
-
-            # ── STEP 5: Sync live position from exchange ──────────────
+            # ── STEP 4: Sync exchange position ───────────────────────────
             futures_executor.sync_position_for_symbol(symbol)
             pos = db.get_symbol_position(symbol)
 
-            active_any = pos["active"] if pos else False
-            active_dir = pos["direction"] if pos else "NONE"
-            active_qty = pos["qty"] if pos else 0
+            active_any = bool(pos.get("active")) if isinstance(pos, dict) else False
+            active_dir = pos.get("direction", "NONE") if isinstance(pos, dict) else "NONE"
+            active_qty = pos.get("qty", 0)          if isinstance(pos, dict) else 0
 
-            # ── STEP 6: Trade decision ───────────────────────────────
+            # ── STEP 5: Candle guard (only blocks same-candle RE-ENTRY) ──
+            # If FLAT  → trade immediately — no double-entry risk
+            # If in pos → only act when a NEW 5m candle closes
+            guard_key = f"5m_{symbol}"
+            last_ts   = _get_symbol_candle_ts(guard_key)
+
+            if active_any:
+                if ts_5m != 0 and ts_5m <= last_ts:
+                    continue   # Same candle, already in position — hold
+            # Always update guard timestamp
+            _set_symbol_candle_ts(guard_key, ts_5m)
+
+            log_terminal(
+                f"[{symbol}] DECIDING | close={close_5m:.5f} ST={st_val:.5f} "
+                f"gap={gap*100:.3f}% sig={signal} pos={active_dir}",
+                "INFO"
+            )
+
+            # ── STEP 6: Trade decision ───────────────────────────────────
 
             # HOLD: Already in correct direction — do nothing
             if active_any and active_dir == signal:
@@ -919,15 +901,14 @@ def run_portfolio_loop():
                 futures_executor.execute_trade_for_symbol(symbol, signal, lots, leverage)
                 db.update_symbol_position(
                     symbol, direction=signal,
-                    entry_price=last_close, qty=lots,
-                    active=1, last_candle_ts=int(time.time())
+                    entry_price=0.0, qty=lots,
+                    active=1, last_candle_ts=int(ts_5m)
                 )
                 continue
 
             # FRESH ENTRY: No open position
             if not active_any:
-                # Atomic DB lock — blocks duplicate entry
-                if not db.acquire_trade_lock(symbol, latest_closed_ts):
+                if not db.acquire_trade_lock(symbol, ts_5m):
                     log_terminal(
                         f"[{symbol}] FRESH ENTRY BLOCKED by DB lock. Already traded.", "WARN"
                     )
@@ -940,8 +921,8 @@ def run_portfolio_loop():
                 futures_executor.execute_trade_for_symbol(symbol, signal, lots, leverage)
                 db.update_symbol_position(
                     symbol, direction=signal,
-                    entry_price=last_close, qty=lots,
-                    active=1, last_candle_ts=int(time.time())
+                    entry_price=0.0, qty=lots,
+                    active=1, last_candle_ts=int(ts_5m)
                 )
 
         except Exception as ex:
