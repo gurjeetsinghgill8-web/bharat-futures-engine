@@ -734,62 +734,74 @@ def run_portfolio_loop():
             base = symbol.upper().replace("USD", "").replace("PERP", "")
             if symbol.upper() in BLOCKED_SYMBOLS or base in BLOCKED_SYMBOLS:
                 log_terminal(
-                    f"[{symbol}] BLOCKED: Stablecoin. SuperTrend meaningless. Skipping.",
+                    f"[{symbol}] BLOCKED: Stablecoin. Skipping.",
                     "WARN"
                 )
                 continue
 
-            # ── STEP 1: Get SuperTrend signal for this coin ──────────────
             import supertrend as _st
-            signal, st_val, last_close, latest_closed_ts = \
+
+            # ── STEP 1: Get SuperTrend VALUE from configured TF (anchor) ─
+            # The ST timeframe (15m/30m etc.) gives us a stable, slow-moving
+            # anchor line. We do NOT use its candle ts for the check interval.
+            _, st_val, _, _ = \
                 _st.get_supertrend_signal_for_symbol(
                     symbol, timeframe=timeframe,
                     period=period, multiplier=multiplier
                 )
 
-            if signal is None:
-                log_terminal(f"[{symbol}] ST signal unavailable. Skipping.", "INFO")
+            if st_val == 0.0:
+                log_terminal(f"[{symbol}] ST value unavailable. Skipping.", "INFO")
                 continue
 
-            # Log current state every cycle so user can see what's happening
+            # ── STEP 2: Get last confirmed 5-MINUTE close price ──────────
+            # This is the decision trigger — checked every 5 minutes.
+            # A 5m close is fully settled (never changes once bar closes).
+            close_5m, ts_5m = _st.get_5m_close_for_symbol(symbol)
+
+            if close_5m is None:
+                log_terminal(f"[{symbol}] 5m close unavailable. Skipping.", "INFO")
+                continue
+
+            # ── STEP 3: Determine signal from price vs ST anchor ─────────
+            signal = "BUY" if close_5m > st_val else "SELL"
+
+            # Log every cycle — user can see exactly what's happening
             pos_now = db.get_symbol_position(symbol)
             p_dir   = pos_now["direction"] if (pos_now and pos_now["active"]) else "FLAT"
             log_terminal(
-                f"[{symbol}] Signal={signal} | Position={p_dir} | ST={st_val:.4f} | Close={last_close:.4f}",
+                f"[{symbol}] 5m_close={close_5m:.4f} | ST({timeframe})={st_val:.4f} | "
+                f"Signal={signal} | Position={p_dir}",
                 "INFO"
             )
 
-            # ── STEP 2: Candle-change guard (DB-backed, crash-safe) ──────
-            last_ts = _get_symbol_candle_ts(symbol)
+            # ── STEP 4: 5-minute candle-change guard ─────────────────────
+            # Guard key uses "5m_" prefix — separate from ST TF guard
+            guard_key = f"5m_{symbol}"
+            last_ts   = _get_symbol_candle_ts(guard_key)
 
             if last_ts == 0:
-                # First time seeing this symbol — record ts, wait for next candle
                 log_terminal(
-                    f"[{symbol}] FIRST RUN — recording ts={latest_closed_ts}. "
-                    f"Will trade on NEXT candle close.",
+                    f"[{symbol}] FIRST RUN — recording 5m ts={ts_5m}. "
+                    f"Will act on NEXT 5-minute candle close.",
                     "INFO"
                 )
-                _set_symbol_candle_ts(symbol, latest_closed_ts)
+                _set_symbol_candle_ts(guard_key, ts_5m)
                 continue
 
-            if latest_closed_ts != 0 and latest_closed_ts <= last_ts:
-                # Same candle already processed — skip silently
-                log_terminal(
-                    f"[{symbol}] Same candle (ts={latest_closed_ts}) — waiting.",
-                    "INFO"
-                )
+            if ts_5m != 0 and ts_5m <= last_ts:
+                # Same 5m candle — no action needed
                 continue
 
-            # New candle — update guard immediately (before any trade)
-            _set_symbol_candle_ts(symbol, latest_closed_ts)
+            # New 5m candle — update guard, sync exchange, then trade
+            _set_symbol_candle_ts(guard_key, ts_5m)
 
             log_terminal(
-                f"[{symbol}] NEW CANDLE | TF={timeframe} P={period} M={multiplier} "
-                f"→ {signal} | ST={st_val:.4f} | Close={last_close:.4f}",
+                f"[{symbol}] NEW 5m CANDLE | 5m_close={close_5m:.4f} | ST({timeframe})={st_val:.4f} | Signal={signal}",
                 "INFO"
             )
 
-            # ── STEP 3: Sync live position from exchange ───────────────
+            # ── STEP 5: Sync live position from exchange ──────────────
             futures_executor.sync_position_for_symbol(symbol)
             pos = db.get_symbol_position(symbol)
 
@@ -797,7 +809,7 @@ def run_portfolio_loop():
             active_dir = pos["direction"] if pos else "NONE"
             active_qty = pos["qty"] if pos else 0
 
-            # ── STEP 4: Trade decision ───────────────────────────────
+            # ── STEP 6: Trade decision ───────────────────────────────
 
             # HOLD: Already in correct direction — do nothing
             if active_any and active_dir == signal:
@@ -811,9 +823,9 @@ def run_portfolio_loop():
             if active_any and active_dir != signal and active_dir != "NONE":
                 log_terminal(f"[{symbol}] FLIP: {active_dir} → {signal}", "ALERT")
                 send_telegram_msg(
-                    f"🔄 FLIP [{symbol}]\n"
-                    f"ST={st_val:.4f} | Close={last_close:.4f}\n"
-                    f"{active_dir} → {signal}\n"
+                    f"\U0001f504 FLIP [{symbol}]\n"
+                    f"ST({timeframe})={st_val:.4f} | 5m_close={close_5m:.4f}\n"
+                    f"{active_dir} \u2192 {signal}\n"
                     f"Closing {active_qty} lot(s) first..."
                 )
                 futures_executor.square_off_symbol(symbol, reason=f"Flip to {signal}")

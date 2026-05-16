@@ -215,3 +215,22 @@ def get_supertrend_signal_for_symbol(symbol, timeframe="5m",
     )
 
     return signal, st_value, last_close, latest_closed_ts
+
+
+# ── GET LAST CONFIRMED 5m CLOSE ─────────────────────────────
+def get_5m_close_for_symbol(symbol):
+    """
+    Returns (close_price, candle_ts) for the last CONFIRMED 5m closed candle.
+    Used for 5-minute price-vs-SuperTrend decisions, regardless of ST timeframe.
+    The 5m close is the fixed, settled price — it never changes after the bar closes.
+    Returns (None, 0) on failure.
+    """
+    df = fetch_candles_for_symbol(symbol, timeframe="5m", limit=5)
+    if df.empty or len(df) < 2:
+        return None, 0
+    # Drop forming candle, use last confirmed
+    df_closed = df.iloc[:-1]
+    last = df_closed.iloc[-1]
+    close_price = float(last['close'])
+    ts          = int(last.get('time', 0))
+    return close_price, ts

@@ -95,18 +95,27 @@ ul[role="listbox"] li:hover {
     color: #e6edf3 !important;
 }
 
-/* ── Expander: fix text overlap ──────────────────────────── */
+/* ── Expander: LIGHT BACKGROUND for Add/Remove sections ──── */
 .streamlit-expanderContent {
-    background: #161b22 !important;
-    border: 1px solid #30363d !important;
+    background: #ffffff !important;
+    border: 1px solid #d0d7de !important;
+    border-radius: 0 0 8px 8px !important;
     padding: 16px !important;
-    overflow: visible !important;
 }
 .streamlit-expanderHeader {
-    color: #58a6ff !important;
+    color: #0d1117 !important;
     font-weight: 700 !important;
-    background: #0d1117 !important;
+    background: #f6f8fa !important;
+    border: 1px solid #d0d7de !important;
     border-radius: 8px !important;
+    font-size: 14px !important;
+}
+/* All text inside expanders: dark */
+.streamlit-expanderContent p,
+.streamlit-expanderContent span,
+.streamlit-expanderContent div,
+.streamlit-expanderContent label {
+    color: #0d1117 !important;
 }
 /* Fix icon overlap in expander title */
 details summary span[data-testid="stExpanderToggleIcon"] {
@@ -120,41 +129,52 @@ details > summary {
     padding: 10px 14px !important;
     cursor: pointer !important;
     overflow: hidden !important;
+    background: #f6f8fa !important;
+    border: 1px solid #d0d7de !important;
+    border-radius: 8px !important;
+    color: #0969da !important;
+    font-weight: 700 !important;
 }
 details > summary::before {
     content: '▶' !important;
     font-size: 11px !important;
-    color: #58a6ff !important;
+    color: #0969da !important;
     flex-shrink: 0 !important;
     transition: transform 0.2s !important;
 }
 details[open] > summary::before {
     content: '▼' !important;
 }
-/* Hide the overlapping arrow_right material icon text */
 .streamlit-expanderHeader p {
-    font-family: 'Source Sans Pro', sans-serif !important;
     font-size: 14px !important;
-    color: #58a6ff !important;
+    color: #0969da !important;
     margin: 0 !important;
-    overflow: visible !important;
-    white-space: normal !important;
 }
-/* Fix overlapping labels inside expanders */
-.streamlit-expanderContent .stTextInput,
-.streamlit-expanderContent .stNumberInput,
-.streamlit-expanderContent .stRadio,
-.streamlit-expanderContent .stSelectbox {
-    margin-bottom: 12px !important;
-    clear: both !important;
+/* Light inputs inside expanders */
+.streamlit-expanderContent .stTextInput > div > div > input {
+    background: #ffffff !important;
+    color: #0d1117 !important;
+    border: 1px solid #0969da !important;
+    border-radius: 8px !important;
+    font-size: 15px !important;
+    font-weight: 600 !important;
 }
-/* Ensure all label text is visible */
-label, .stMarkdown p, .stMarkdown span {
-    color: #e6edf3 !important;
+.streamlit-expanderContent .stTextInput label,
+.streamlit-expanderContent .stNumberInput label,
+.streamlit-expanderContent .stSelectbox label {
+    color: #0d1117 !important;
+    font-weight: 700 !important;
 }
-div[data-testid="stHorizontalBlock"] {
-    gap: 16px !important;
-    align-items: flex-start !important;
+.streamlit-expanderContent .stNumberInput input {
+    background: #ffffff !important;
+    color: #0d1117 !important;
+    border: 1px solid #0969da !important;
+    border-radius: 8px !important;
+}
+.streamlit-expanderContent .stSelectbox > div > div {
+    background: #ffffff !important;
+    color: #0d1117 !important;
+    border: 1px solid #0969da !important;
 }
 
 /* Slider */
@@ -178,10 +198,6 @@ div[data-testid="stHorizontalBlock"] {
 .stWarning { background: #3d2b00 !important; color: #d29922 !important; }
 .stError   { background: #3d0f0f !important; color: #f85149 !important; }
 .element-container .stAlert p { color: inherit !important; }
-
-/* Expander */
-.streamlit-expanderHeader { color: #58a6ff !important; font-weight: 700 !important; }
-.streamlit-expanderContent { background: #161b22 !important; border: 1px solid #30363d !important; }
 
 /* Dividers */
 hr { border-color: #21262d !important; }
@@ -216,9 +232,9 @@ hr { border-color: #21262d !important; }
     border-left: 3px solid #1f6feb; padding-left: 10px;
 }
 /* Alert / info boxes */
-.abox { background: #3d1414; border: 1px solid #f85149; border-radius: 8px; padding: 12px; color: #ff7b72; font-size: 13px; text-align: center; margin: 8px 0; }
-.ibox { background: #0d2437; border: 1px solid #1f6feb; border-radius: 8px; padding: 12px; color: #79c0ff; font-size: 13px; text-align: center; margin: 8px 0; }
-.sbox { background: #0f2d1f; border: 1px solid #2ea043; border-radius: 8px; padding: 12px; color: #56d364; font-size: 13px; text-align: center; margin: 8px 0; }
+.abox { background: #fff0f0; border: 1px solid #f85149; border-radius: 8px; padding: 12px; color: #cf222e; font-size: 13px; text-align: center; margin: 8px 0; }
+.ibox { background: #ddf4ff; border: 1px solid #0969da; border-radius: 8px; padding: 12px; color: #0550ae; font-size: 13px; text-align: center; margin: 8px 0; }
+.sbox { background: #dafbe1; border: 1px solid #2ea043; border-radius: 8px; padding: 12px; color: #116329; font-size: 13px; text-align: center; margin: 8px 0; }
 
 /* Trade table */
 .ttbl { width: 100%; border-collapse: collapse; }
@@ -228,6 +244,7 @@ hr { border-color: #21262d !important; }
 .pn { color: #f85149; font-weight: 700; }
 </style>
 """, unsafe_allow_html=True)
+
 
 db.init_db()
 
