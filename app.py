@@ -561,11 +561,11 @@ else:
     )
 
 # ── Add Coin ────────────────────────────────────────────────────────
-st.markdown("<div class='shdr'>➕ Add / Remove Coins</div>", unsafe_allow_html=True)
-with st.expander("➕ Click to Add a Coin to Portfolio", expanded=True):
+st.markdown("<div class='shdr'>ADD / REMOVE COINS</div>", unsafe_allow_html=True)
+with st.expander("Click to Add a Coin to Portfolio", expanded=True):
     st.markdown(
         "<div class='ibox'>Enter any Delta Exchange perpetual symbol (e.g. ETHUSD, SOLUSD, XRPUSD).<br>"
-        "Coin will trade using the same SuperTrend settings as BTC.</div>",
+        "Coin will trade using the same SuperTrend TF/Period/Multiplier set in Settings above.</div>",
         unsafe_allow_html=True
     )
     add_c1, add_c2, add_c3 = st.columns([2, 1, 1])
@@ -601,7 +601,7 @@ st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
 
 # ── Remove / Square Off ────────────────────────────────────────────
 if all_syms:
-    with st.expander("🔴 Remove or Square Off a Coin"):
+    with st.expander("Remove or Square Off a Coin"):
         sym_names = [s["symbol"] for s in all_syms]
         rem_c1, rem_c2, rem_c3 = st.columns(3)
         with rem_c1:

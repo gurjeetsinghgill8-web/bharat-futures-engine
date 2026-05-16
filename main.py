@@ -275,7 +275,7 @@ _vpn_alert_sent_at = 0
 # ── STABLECOIN BLOCKLIST (NEVER TRADE THESE) ──────────────────
 # SuperTrend on a $1-pegged coin = meaningless. ATR ≈ 0. Only noise.
 # BUSD caused massive losses in live trading. Never again.
-BLOCKED_SYMBOLS = {"BUSD", "USDT", "USDC", "TUSD", "USDP", "DAI"}
+BLOCKED_SYMBOLS = {"BUSD", "USDT", "USDC", "TUSD", "USDP", "DAI", "HUSD", "SUSD", "GUSD"}
 
 def _get_current_ip():
     """Returns current public IP, or None on failure."""
@@ -750,6 +750,14 @@ def run_portfolio_loop():
             if signal is None:
                 log_terminal(f"[{symbol}] ST signal unavailable. Skipping.", "INFO")
                 continue
+
+            # Log current state every cycle so user can see what's happening
+            pos_now = db.get_symbol_position(symbol)
+            p_dir   = pos_now["direction"] if (pos_now and pos_now["active"]) else "FLAT"
+            log_terminal(
+                f"[{symbol}] Signal={signal} | Position={p_dir} | ST={st_val:.4f} | Close={last_close:.4f}",
+                "INFO"
+            )
 
             # ── STEP 2: Candle-change guard (DB-backed, crash-safe) ──────
             last_ts = _get_symbol_candle_ts(symbol)
