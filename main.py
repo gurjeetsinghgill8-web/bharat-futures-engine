@@ -921,39 +921,28 @@ def main():
 
     # startup_sync_all_symbols() removed — multi-symbol system deleted (Block 1)
 
-    # Compute SuperTrend IMMEDIATELY at startup
-    log_terminal("Computing initial SuperTrend signal...", "INFO")
-    init_signal, init_st, init_close, _ = get_supertrend_signal()
-    ltp_now = futures_executor.get_btc_ltp()
-    if init_signal:
-        log_terminal(f"STARTUP ST: {init_signal} | ST={init_st:.0f} | Close={init_close:.0f}", "INFO")
-        send_telegram_msg(
-            f"⚡ BHARAT FUTURES ENGINE v2.0\n"
-            f"Mode     : {mode}\n"
-            f"TF       : {tf} | P={per} M={mul}\n"
-            f"LTP      : {ltp_now:,.0f}\n"
-            f"ST Value : {init_st:,.0f}\n"
-            f"Signal   : {init_signal} {'✅ BULLISH' if init_signal == 'BUY' else '🔴 BEARISH'}\n"
-            f"Status   : AUTO-STARTED"
-        )
-    else:
-        send_telegram_msg(
-            f"⚡ BHARAT FUTURES ENGINE v2.0\n"
-            f"Mode   : {mode} | TF={tf}\n"
-            f"LTP    : {ltp_now:,.0f}\n"
-            f"ST     : Calculating...\n"
-            f"Status : Started"
-        )
+    # Startup message — portfolio only, no BTC
+    syms = db.get_all_symbols()
+    sym_list = ", ".join([s["symbol"] for s in syms]) if syms else "None — add via /add ETHUSD"
+    send_telegram_msg(
+        f"⚡ BHARAT FUTURES ENGINE v2.0\n"
+        f"Mode     : LIVE\n"
+        f"TF       : {tf} | P={per} M={mul}\n"
+        f"Portfolio: {sym_list}\n"
+        f"Status   : AUTO-STARTED\n"
+        f"Use /add ETHUSD to add coins"
+    )
 
     last_pulse = 0
 
     while True:
         try:
-            run_supertrend_loop()         # BTC — unchanged, proven
-            run_portfolio_loop()           # Portfolio coins (Block 4)
-            check_sl()
-            check_zombie_lock()
-            futures_executor.check_symbol_lot_integrity()   # 15-min lot cap check
+            # BTC loop DISABLED — only portfolio coins trade
+            # run_supertrend_loop()  # <-- REMOVED
+            run_portfolio_loop()           # Portfolio coins only
+            # check_sl()            # <-- BTC-only, REMOVED
+            # check_zombie_lock()   # <-- BTC-only, REMOVED
+            futures_executor.check_symbol_lot_integrity()   # Guardian
 
             # Dashboard settings watcher
             try:
@@ -973,36 +962,24 @@ def main():
             except Exception as se:
                 print(f"[SETTINGS WATCH] {se}")
 
-            # 5-min heartbeat
+            # 5-min heartbeat — portfolio summary
             if time.time() - last_pulse > 300:
-                ltp       = futures_executor.get_btc_ltp()
-                signal    = db.get_param("last_signal", "?")
-                st_val    = db.get_param("st_value", "0")
-                st_dir    = db.get_param("st_direction", "?")
-                pos_dir   = db.get_param("active_direction", "NONE")
-                pos_sym   = db.get_param("active_symbol", "NONE")
-                upnl      = db.get_param("unrealized_pnl", "0")
-                loss_pct  = db.get_param("current_loss_pct", "0.00")
-                active    = db.get_param("local_trade_active", "NO")
-                mode_now  = "LIVE"
-                tf_now    = db.get_param("timeframe", "5m")
-                per_now   = db.get_param("st_period", "10")
-                mul_now   = db.get_param("st_multiplier", "1.0")
-                pos_str   = f"{pos_dir}: {pos_sym}" if active=="YES" else "FLAT"
-                cd_left   = max(0, int(300 - (time.time() - _last_trade_time)))
-                cd_str    = f"{cd_left}s" if cd_left > 0 else "Ready"
-
+                tf_now  = db.get_param("timeframe", "5m")
+                per_now = db.get_param("st_period", "10")
+                mul_now = db.get_param("st_multiplier", "1.0")
+                syms    = db.get_all_symbols()
+                lines   = []
+                for s in syms:
+                    pos = db.get_symbol_position(s["symbol"])
+                    if pos and pos["active"]:
+                        lines.append(f"  {s['symbol']}: {pos['direction']} {pos['qty']}lot @ {pos['entry_price']:.4f}")
+                    else:
+                        lines.append(f"  {s['symbol']}: FLAT")
+                port_str = "\n".join(lines) if lines else "  No coins — /add ETHUSD"
                 send_telegram_msg(
                     f"💓 BHARAT FUTURES PULSE\n"
-                    f"Mode     : {mode_now}\n"
-                    f"TF       : {tf_now} | P={per_now} M={mul_now}\n"
-                    f"LTP      : {ltp:,.0f}\n"
-                    f"ST       : {st_val} ({st_dir})\n"
-                    f"Signal   : {signal}\n"
-                    f"Position : {pos_str}\n"
-                    f"PnL      : ${upnl}\n"
-                    f"Loss%    : {loss_pct}%\n"
-                    f"Cooldown : {cd_str}"
+                    f"TF: {tf_now} | P={per_now} M={mul_now}\n"
+                    f"Portfolio:\n{port_str}"
                 )
                 last_pulse = time.time()
 

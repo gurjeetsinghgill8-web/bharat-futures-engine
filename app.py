@@ -240,7 +240,7 @@ with h1:
         &#9889; BHARAT NEXUS
       </div>
       <div style='color:#8b949e;font-size:12px;margin-top:2px;letter-spacing:3px;'>
-        BTC + MULTI-SYMBOL &middot; SUPERTREND PORTFOLIO ENGINE &middot; v6.0
+        MULTI-SYMBOL PORTFOLIO &middot; SUPERTREND ENGINE &middot; v6.0
       </div>
     </div>
     """, unsafe_allow_html=True)
@@ -275,7 +275,12 @@ loss_pct     = float(db.get_param("current_loss_pct", "0") or "0")
 pnl_24h, trades_24h, wr_24h, _ = db.get_stats(1)
 is_up        = (st_dir == "UP")
 
-# ── METRICS ──────────────────────────────────────────────────
+# ── PORTFOLIO METRICS ────────────────────────────────────────
+all_syms_top = db.get_all_symbols()
+total_coins  = len(all_syms_top)
+active_coins = sum(1 for _s in all_syms_top
+                   if (lambda p: p and p["active"])(db.get_symbol_position(_s["symbol"])))
+
 c1, c2, c3, c4, c5 = st.columns(5)
 
 def mc(label, val, sub, color="#e6edf3"):
@@ -286,27 +291,21 @@ def mc(label, val, sub, color="#e6edf3"):
     </div>"""
 
 with c1:
-    st.markdown(mc("BTC Price", f"${ltp:,.0f}", "Live Spot", "#e6edf3"), unsafe_allow_html=True)
+    ac = "#56d364" if active_coins > 0 else "#8b949e"
+    st.markdown(mc("Portfolio Coins", str(total_coins), "Total added"), unsafe_allow_html=True)
 with c2:
-    c = "#0f2d1f" if is_up else "#2d0f0f"
-    bc = "#2ea043" if is_up else "#f85149"
-    vc = "#56d364" if is_up else "#f85149"
-    ar = "▲ BULLISH" if is_up else "▼ BEARISH"
-    st.markdown(f"""<div style='background:{c};border:1px solid {bc};border-radius:12px;padding:18px;text-align:center;'>
-      <div class='lbl'>SuperTrend</div>
-      <div class='val' style='color:{vc}'>{st_val:,.0f}</div>
-      <div style='color:{vc};font-size:12px;font-weight:700;margin-top:4px;'>{ar}</div>
-    </div>""", unsafe_allow_html=True)
+    ac = "#56d364" if active_coins > 0 else "#8b949e"
+    st.markdown(mc("Active Trades", str(active_coins), "Live on exchange", ac), unsafe_allow_html=True)
 with c3:
     sc = "#56d364" if last_signal=="BUY" else ("#f85149" if last_signal=="SELL" else "#8b949e")
-    st.markdown(mc("Signal", last_signal, f"TF:{timeframe} P={st_period} M={st_mult}", sc), unsafe_allow_html=True)
+    st.markdown(mc("ST Signal", last_signal, f"TF:{timeframe} P={st_period} M={st_mult}", sc), unsafe_allow_html=True)
 with c4:
     pc = "#56d364" if upnl >= 0 else "#f85149"
-    ps = f"{active_dir}:{active_sym}" if trade_active=="YES" else "FLAT"
-    st.markdown(mc("Live PnL", f"${upnl:+.2f}", ps, pc), unsafe_allow_html=True)
+    st.markdown(mc("Live PnL", f"${upnl:+.2f}", "Unrealized total", pc), unsafe_allow_html=True)
 with c5:
     dc = "#56d364" if pnl_24h >= 0 else "#f85149"
     st.markdown(mc("24h PnL", f"${pnl_24h:+.2f}", f"{trades_24h} trades WR:{wr_24h:.0f}%", dc), unsafe_allow_html=True)
+
 
 st.divider()
 
