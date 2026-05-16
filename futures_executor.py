@@ -472,9 +472,21 @@ def sync_position_for_symbol(delta_symbol):
                 print(f"[SYNC:{delta_symbol}] ISOLATED: {direction} {qty}lots @ {entry_px}")
                 break
 
-        # Step 2: cross-margin via product_id (Delta India requires product_id param!)
+        # Step 2: cross-margin via product_id (silent lookup — no Telegram spam)
         if active_int == 0:
-            pid, _ = get_product_id_for_symbol(delta_symbol)
+            try:
+                rp = requests.get(
+                    f"{BASE_URL}/v2/products?contract_types=perpetual_futures",
+                    timeout=10
+                )
+                pid = None
+                if rp.status_code == 200:
+                    for pr in rp.json().get("result", []):
+                        if pr.get("symbol", "").upper() == delta_symbol.upper():
+                            pid = pr.get("id")
+                            break
+            except Exception:
+                pid = None
             if pid:
                 qs   = f"product_id={pid}"
                 path = "/v2/positions"
@@ -812,9 +824,11 @@ def check_symbol_lot_integrity():
 
         try:
             sync_position_for_symbol(symbol)
-            pos      = db.get_symbol_position(symbol)
-            abs_live = pos["qty"]       if (pos and pos["active"]) else 0
-            live_dir = pos["direction"] if pos else "NONE"
+            pos = db.get_symbol_position(symbol)
+            abs_live = int(pos.get("qty", 0))       if isinstance(pos, dict) else 0
+            live_dir = pos.get("direction", "NONE") if isinstance(pos, dict) else "NONE"
+            if not (isinstance(pos, dict) and pos.get("active")):
+                abs_live = 0; live_dir = "NONE"
 
             # ── Case 1: EXCESS LOTS — close ALL immediately ────────────
             if abs_live > cfg_lots:
