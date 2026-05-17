@@ -134,7 +134,9 @@ def _tg_process_command(text, chat_id):
         for s in syms:
             pos = db.get_symbol_position(s["symbol"])
             if pos and pos["active"]:
-                lines += f"  {s['symbol']}: {pos['direction']} {pos['qty']}lots @ {pos['entry_price']:.4f}\n"
+                # FIX (Lego #8): Show N/A instead of 0.0000 when entry price not yet known
+                ep_str = f"{pos['entry_price']:.5f}" if pos.get("entry_price", 0) > 0 else "N/A"
+                lines += f"  {s['symbol']}: {pos['direction']} {pos['qty']}lots @ {ep_str}\n"
             else:
                 lines += f"  {s['symbol']}: FLAT\n"
         reply(lines)
@@ -1057,7 +1059,9 @@ def main():
                 for s in syms:
                     pos = db.get_symbol_position(s["symbol"])
                     if pos and pos["active"]:
-                        lines.append(f"  {s['symbol']}: {pos['direction']} {pos['qty']}lot @ {pos['entry_price']:.4f}")
+                        # FIX (Lego #8): Show N/A instead of 0.0000 when entry price not yet known
+                        ep_str = f"{pos['entry_price']:.5f}" if pos.get("entry_price", 0) > 0 else "N/A"
+                        lines.append(f"  {s['symbol']}: {pos['direction']} {pos['qty']}lot @ {ep_str}")
                     else:
                         lines.append(f"  {s['symbol']}: FLAT")
                 port_str = "\n".join(lines) if lines else "  No coins — /add ETHUSD"
