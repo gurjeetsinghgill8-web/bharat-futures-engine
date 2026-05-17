@@ -368,8 +368,32 @@ with left:
 
     st.markdown("<div class='shdr'>🚨 Emergency</div>", unsafe_allow_html=True)
     if st.button("🔴 SQUARE OFF ALL POSITIONS", key="btn_sq"):
-        futures_executor.square_off_futures(reason="Manual Dashboard")
-        st.error("Square off executed!")
+        # D-1 FIX: Loop all portfolio coins and close each one.
+        # Old code called square_off_futures() = BTC-only, did nothing for alts.
+        _syms_all = db.get_all_symbols()
+        _closed   = []
+        _errors   = []
+        for _s in _syms_all:
+            try:
+                _pos = db.get_symbol_position(_s["symbol"])
+                if _pos and _pos["active"]:
+                    futures_executor.square_off_symbol(
+                        _s["symbol"], reason="Manual Dashboard Square Off"
+                    )
+                    db.update_symbol_position(_s["symbol"], "NONE", 0.0, 0, 0)
+                    _closed.append(_s["symbol"])
+            except Exception as _e:
+                _errors.append(f"{_s['symbol']}:{_e}")
+        if _closed:
+            send_telegram_msg(
+                "SQUARE OFF ALL (Dashboard)\n"
+                "Closed: " + ", ".join(_closed)
+            )
+            st.error("Closed: " + ", ".join(_closed))
+        else:
+            st.warning("No open positions to close.")
+        if _errors:
+            st.error("Errors: " + " | ".join(_errors))
         st.rerun()
 
     st.divider()
