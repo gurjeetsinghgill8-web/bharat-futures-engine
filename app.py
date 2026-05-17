@@ -465,7 +465,7 @@ with right:
         per_sel = st.number_input("Period (ATR Length)", 2, 50, int(st_period or 10), 1, key="per")
     with r2:
         mul_sel = st.number_input("Multiplier", 0.1, 10.0, float(st_mult or 1.0), 0.1, key="mul", format="%.1f")
-        sl_sel  = st.number_input("Stop Loss %", 0.1, 20.0, sl_pct, 0.1, key="sl",  format="%.1f")
+        sl_sel  = st.number_input("Stop Loss %", 0.1, 100.0, sl_pct, 0.1, key="sl",  format="%.1f")
 
     st.divider()
     st.markdown("<div class='shdr'>⚙️ Trade Settings</div>", unsafe_allow_html=True)
