@@ -709,15 +709,17 @@ def send_portfolio_pulse():
     for s in enabled:
         sym = s["symbol"]
         try:
-            _, st_val, _, _ = _st.get_supertrend_signal_for_symbol(
+            # FIX (Lego #5): Capture st_signal — same fix as trading loop (Lego #3)
+            st_signal, st_val, _, _ = _st.get_supertrend_signal_for_symbol(
                 sym, timeframe=s.get("timeframe", timeframe),
                 period=s.get("st_period", period),
                 multiplier=s.get("st_multiplier", multiplier)
             )
             close_5m, _ = _st.get_5m_close_for_symbol(sym)
             if close_5m and st_val:
-                gap  = (close_5m - st_val) / st_val * 100
-                sig  = "BUY \u25b2" if close_5m > st_val else "SELL \u25bc"
+                gap = (close_5m - st_val) / st_val * 100
+                # FIX (Lego #5): Use direction-based signal, not raw price comparison
+                sig = ("BUY \u25b2" if st_signal == "BUY" else "SELL \u25bc") if st_signal else "?"
             else:
                 gap = 0; sig = "?"
             pos   = db.get_symbol_position(sym)
