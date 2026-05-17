@@ -779,10 +779,12 @@ def run_portfolio_loop():
 
     for sym_cfg in enabled:
         symbol     = sym_cfg["symbol"]
-        timeframe  = sym_cfg["timeframe"]
-        period     = sym_cfg["st_period"]
-        multiplier = sym_cfg["st_multiplier"]
         lots       = sym_cfg["lots"]
+        # FIX: Read settings from global params (dashboard) — NOT frozen sym_cfg.
+        # This means every dashboard Save immediately affects all portfolio coins.
+        timeframe  = db.get_param("timeframe",     "15m")
+        period     = int(db.get_param("st_period",     "10")  or 10)
+        multiplier = float(db.get_param("st_multiplier", "2.5") or 2.5)
 
         try:
             # ── STABLECOIN GUARD ─────────────────────────────────────
@@ -818,13 +820,14 @@ def run_portfolio_loop():
                 continue
 
             # ── STEP 3: Determine signal from price vs ST anchor ─────────
-            # Buffer zone: if price is within 0.1% of ST, hold — avoids flip-flop
-            buffer_pct = 0.001   # 0.1%
+            # Buffer zone: if price is within 0.3% of ST, hold — avoids whipsaw flips.
+            # Was 0.1% — too tight for volatile alts like RUNEUSD, AIGENSYNUSD.
+            buffer_pct = 0.003   # 0.3%
             gap = abs(close_5m - st_val) / st_val if st_val > 0 else 1.0
             if gap < buffer_pct:
                 log_terminal(
                     f"[{symbol}] BUFFER ZONE: 5m_close={close_5m:.4f} within "
-                    f"0.1% of ST={st_val:.4f}. Holding current position.",
+                    f"0.3% of ST={st_val:.4f}. Holding current position.",
                     "INFO"
                 )
                 continue
@@ -892,7 +895,8 @@ def run_portfolio_loop():
                     )
 
                 # Atomic DB lock — blocks duplicate entry from any 2nd process
-                if not db.acquire_trade_lock(symbol, latest_closed_ts):
+                # FIX: was latest_closed_ts (undefined) — correct variable is ts_5m
+                if not db.acquire_trade_lock(symbol, ts_5m):
                     log_terminal(
                         f"[{symbol}] FLIP BLOCKED by DB lock. Already traded.", "WARN"
                     )
