@@ -910,9 +910,13 @@ def run_portfolio_loop():
                     continue
 
                 futures_executor.execute_trade_for_symbol(symbol, signal, lots, leverage)
+                # FIX (Lego #6B): executor sets real entry price in DB — read it back.
+                # DO NOT hardcode 0.0 — that overwrites the real price the executor just saved.
+                _pos_after = db.get_symbol_position(symbol)
+                _real_ep   = float(_pos_after["entry_price"]) if (_pos_after and _pos_after.get("entry_price", 0)) else 0.0
                 db.update_symbol_position(
                     symbol, direction=signal,
-                    entry_price=0.0, qty=lots,
+                    entry_price=_real_ep, qty=lots,
                     active=1, last_candle_ts=int(ts_5m)
                 )
                 continue
@@ -930,9 +934,12 @@ def run_portfolio_loop():
                     "TRADE"
                 )
                 futures_executor.execute_trade_for_symbol(symbol, signal, lots, leverage)
+                # FIX (Lego #6B): Same fix — preserve real entry price set by executor.
+                _pos_after = db.get_symbol_position(symbol)
+                _real_ep   = float(_pos_after["entry_price"]) if (_pos_after and _pos_after.get("entry_price", 0)) else 0.0
                 db.update_symbol_position(
                     symbol, direction=signal,
-                    entry_price=0.0, qty=lots,
+                    entry_price=_real_ep, qty=lots,
                     active=1, last_candle_ts=int(ts_5m)
                 )
 
