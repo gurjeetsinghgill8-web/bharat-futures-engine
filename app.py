@@ -376,9 +376,19 @@ with left:
             st.success("Reset done!")
             st.rerun()
     with b4:
-        if st.button("🧹 CLEAR POSITION", key="btn_clr"):
+        if st.button("CLEAR POSITION DB", key="btn_clr"):
+            # FIX: Clear ALL portfolio coin positions from symbol_positions table.
+            # Old code called _clear_position_db() = BTC-only, had no effect on portfolio.
+            _cleared = []
+            for _s in db.get_all_symbols():
+                db.update_symbol_position(_s["symbol"], "NONE", 0.0, 0, 0)
+                _cleared.append(_s["symbol"])
+            # Also clear legacy BTC params just in case
             futures_executor._clear_position_db()
-            st.success("Position cleared.")
+            if _cleared:
+                st.success("DB cleared for: " + ", ".join(_cleared))
+            else:
+                st.success("Position DB cleared.")
             st.rerun()
 
     st.divider()
