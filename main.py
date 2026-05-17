@@ -800,7 +800,10 @@ def run_portfolio_loop():
             # ── STEP 1: Get SuperTrend VALUE from configured TF (anchor) ─
             # The ST timeframe (15m/30m etc.) gives us a stable, slow-moving
             # anchor line. We do NOT use its candle ts for the check interval.
-            _, st_val, _, _ = \
+            # FIX (Lego #3): Capture st_signal — do NOT discard it.
+            # The direction flag inside ST calc is the correct signal source.
+            # Using raw close_5m > st_val was giving wrong side on EDEN etc.
+            st_signal, st_val, _, _ = \
                 _st.get_supertrend_signal_for_symbol(
                     symbol, timeframe=timeframe,
                     period=period, multiplier=multiplier
@@ -832,7 +835,9 @@ def run_portfolio_loop():
                 )
                 continue
 
-            signal = "BUY" if close_5m > st_val else "SELL"
+            # FIX (Lego #3): Use the direction-based signal from ST calc.
+            # DO NOT recompute from close_5m > st_val — that ignores candle crossover state.
+            signal = st_signal
 
 
             # ── STEP 4: Sync exchange position ───────────────────────────
