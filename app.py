@@ -96,13 +96,16 @@ ul[role="listbox"] li:hover {
 }
 
 /* ── Expander: LIGHT BACKGROUND for Add/Remove sections ──── */
-.streamlit-expanderContent {
+/* D-3 FIX: Added data-testid selectors (new Streamlit) alongside old class names */
+.streamlit-expanderContent,
+[data-testid="stExpanderDetails"] {
     background: #ffffff !important;
     border: 1px solid #d0d7de !important;
     border-radius: 0 0 8px 8px !important;
     padding: 16px !important;
 }
-.streamlit-expanderHeader {
+.streamlit-expanderHeader,
+[data-testid="stExpander"] > details > summary {
     color: #0d1117 !important;
     font-weight: 700 !important;
     background: #f6f8fa !important;
@@ -110,11 +113,17 @@ ul[role="listbox"] li:hover {
     border-radius: 8px !important;
     font-size: 14px !important;
 }
-/* All text inside expanders: dark */
+/* All text inside expanders: DARK (overrides global white rule) */
 .streamlit-expanderContent p,
 .streamlit-expanderContent span,
 .streamlit-expanderContent div,
-.streamlit-expanderContent label {
+.streamlit-expanderContent label,
+[data-testid="stExpanderDetails"] p,
+[data-testid="stExpanderDetails"] span,
+[data-testid="stExpanderDetails"] div,
+[data-testid="stExpanderDetails"] label,
+[data-testid="stExpanderDetails"] small,
+[data-testid="stExpanderDetails"] .stMarkdown p {
     color: #0d1117 !important;
 }
 /* Fix icon overlap in expander title */
@@ -151,7 +160,8 @@ details[open] > summary::before {
     margin: 0 !important;
 }
 /* Light inputs inside expanders */
-.streamlit-expanderContent .stTextInput > div > div > input {
+.streamlit-expanderContent .stTextInput > div > div > input,
+[data-testid="stExpanderDetails"] .stTextInput > div > div > input {
     background: #ffffff !important;
     color: #0d1117 !important;
     border: 1px solid #0969da !important;
@@ -161,17 +171,22 @@ details[open] > summary::before {
 }
 .streamlit-expanderContent .stTextInput label,
 .streamlit-expanderContent .stNumberInput label,
-.streamlit-expanderContent .stSelectbox label {
+.streamlit-expanderContent .stSelectbox label,
+[data-testid="stExpanderDetails"] .stTextInput label,
+[data-testid="stExpanderDetails"] .stNumberInput label,
+[data-testid="stExpanderDetails"] .stSelectbox label {
     color: #0d1117 !important;
     font-weight: 700 !important;
 }
-.streamlit-expanderContent .stNumberInput input {
+.streamlit-expanderContent .stNumberInput input,
+[data-testid="stExpanderDetails"] .stNumberInput input {
     background: #ffffff !important;
     color: #0d1117 !important;
     border: 1px solid #0969da !important;
     border-radius: 8px !important;
 }
-.streamlit-expanderContent .stSelectbox > div > div {
+.streamlit-expanderContent .stSelectbox > div > div,
+[data-testid="stExpanderDetails"] .stSelectbox > div > div {
     background: #ffffff !important;
     color: #0d1117 !important;
     border: 1px solid #0969da !important;
