@@ -491,33 +491,28 @@ with right:
         _mode_idx = 1 if _cur_mode == "LIVE" else 0
         mode_sel = st.selectbox("Trade Mode", ["PAPER", "LIVE"],
                                 index=_mode_idx, key="mode")
-        qty_sel  = st.number_input("Trade Size (lots)", 1, 100,
-                                   int(db.get_param("trade_size","1") or 1), 1, key="qty")
     with t2:
-        lev_opts = [5, 10, 25, 50, 100, 200]
-        cur_lev  = int(db.get_param("leverage", "10") or 10)
-        lev_idx  = lev_opts.index(cur_lev) if cur_lev in lev_opts else 1
-        lev_sel  = st.selectbox("Leverage", lev_opts, index=lev_idx, key="lev",
-                                help="5x=Safe | 10x=Default | 25x=Medium | 50x+ = High Risk")
         cd_val   = int(db.get_param("cooldown_seconds","300") or 300)
         cd_sel   = st.slider("Cooldown (sec)", 60, 900, cd_val, 60, key="cd")
+    st.markdown(
+        "<div class='ibox'>Leverage and Lot Size: set per-coin in Add Coin section below.</div>",
+        unsafe_allow_html=True
+    )
 
-    if st.button("💾 SAVE ALL SETTINGS", key="btn_save"):
+    if st.button("SAVE ALL SETTINGS", key="btn_save"):
         db.set_param("timeframe",        tf_sel)
         db.set_param("st_period",        str(per_sel))
         db.set_param("st_multiplier",    str(mul_sel))
         db.set_param("sl_percent",       str(sl_sel))
         db.set_param("trade_mode",       mode_sel)
-        db.set_param("trade_size",       str(qty_sel))
-        db.set_param("leverage",         str(lev_sel))
         db.set_param("cooldown_seconds", str(cd_sel))
         db.set_param("settings_updated_at", str(int(time.time())))
-        # FIX: Also sync every portfolio coin's stored TF/P/M to match dashboard.
-        # Lots stay unchanged per-coin. This keeps symbols table in sync with params.
+        # Sync every portfolio coin's stored TF/P/M to match dashboard.
+        # Lots and leverage stay unchanged per-coin.
         for _s in db.get_all_symbols():
             db.add_symbol(_s["symbol"], tf_sel, per_sel, mul_sel,
                           _s["lots"], _s["enabled"])
-        st.success(f"Saved! TF={tf_sel} P={per_sel} M={mul_sel} SL={sl_sel}% Lots={qty_sel} Lev={lev_sel}x Mode={mode_sel}")
+        st.success(f"Saved! TF={tf_sel} P={per_sel} M={mul_sel} SL={sl_sel}% Cooldown={cd_sel}s Mode={mode_sel}")
 
     st.divider()
     st.markdown("<div class='shdr'>🔑 Manual Key Entry</div>", unsafe_allow_html=True)
@@ -629,9 +624,8 @@ with st.expander("Click to Add a Coin to Portfolio", expanded=True):
         "Coin will trade using the same SuperTrend TF/Period/Multiplier set in Settings above.</div>",
         unsafe_allow_html=True
     )
-    add_c1, add_c2, add_c3 = st.columns([2, 1, 1])
+    add_c1, add_c2, add_c3, add_c4 = st.columns([2, 1, 1, 1])
     with add_c1:
-        # Auto-uppercase: show what they typed but store as uppercase
         raw_sym = st.text_input(
             "Symbol (e.g. ETHUSD)", value="", key="b5_sym",
             placeholder="ETHUSD",
@@ -639,29 +633,35 @@ with st.expander("Click to Add a Coin to Portfolio", expanded=True):
         )
         new_sym = raw_sym.strip().upper()
         if raw_sym and raw_sym != raw_sym.upper():
-            st.caption(f"Will use: **{new_sym}**")
+            st.caption(f"Will use: {new_sym}")
 
     with add_c2:
-        new_lots = st.number_input("Lots", min_value=1, max_value=50, value=1, step=1, key="b5_lots")
+        new_lots = st.number_input("Lots", min_value=1, max_value=500, value=1, step=1, key="b5_lots")
     with add_c3:
+        _lev_opts = [5, 10, 25, 50, 100, 200]
+        new_lev = st.selectbox("Leverage", _lev_opts, index=1, key="b5_lev",
+                               help="Per-coin leverage")
+    with add_c4:
         st.markdown("<div style='height:28px'></div>", unsafe_allow_html=True)
         if st.button("✅ ADD COIN", key="btn_add_sym"):
             STABLES = {"BUSD","USDT","USDC","TUSD","USDP","DAI"}
             if not new_sym:
                 st.error("Enter a symbol first!")
             elif new_sym.replace("USD","") in STABLES or new_sym in STABLES:
-                st.error(f"⚠️ {new_sym} is a stablecoin — blocked!")
+                st.error(f"{new_sym} is a stablecoin — blocked!")
             else:
-                tf  = db.get_param("timeframe",    "5m")
-                per = int(db.get_param("st_period",    "10") or 10)
-                mul = float(db.get_param("st_multiplier","1.0") or 1.0)
+                tf  = db.get_param("timeframe",     "15m")
+                per = int(db.get_param("st_period",   "10") or 10)
+                mul = float(db.get_param("st_multiplier","2.5") or 2.5)
                 db.add_symbol(new_sym, timeframe=tf, st_period=per,
                               st_multiplier=mul, lots=new_lots, enabled=1)
+                # Save leverage per-coin as a separate param key
+                db.set_param(f"leverage_{new_sym}", str(new_lev))
                 send_telegram_msg(
-                    f"🟢 SYMBOL ADDED: {new_sym}\n"
-                    f"TF={tf} | P={per} | M={mul} | Lots={new_lots}"
+                    f"SYMBOL ADDED: {new_sym}\n"
+                    f"TF={tf} | P={per} | M={mul} | Lots={new_lots} | Lev={new_lev}x"
                 )
-                st.success(f"✅ {new_sym} added! Bot will trade on next candle close.")
+                st.success(f"{new_sym} added! Lots={new_lots} Leverage={new_lev}x. Bot trades on next candle close.")
                 st.rerun()
 
 st.markdown("<div style='height:8px'></div>", unsafe_allow_html=True)
