@@ -210,6 +210,53 @@ def _tg_process_command(text, chat_id):
             lines += f"M={db.get_param('st_multiplier','1.5')}"
             reply(lines)
 
+    elif cmd == "/pnl":
+        # Lego #10: Live unrealized PnL per symbol using mark price from Delta
+        syms_pnl = db.get_all_symbols()
+        if not syms_pnl:
+            reply("Portfolio is empty.")
+        else:
+            out = "\U0001f4b0 LIVE PnL REPORT\n" + "\u2500"*28 + "\n"
+            total_pnl = 0.0
+            for s in syms_pnl:
+                sym_p = s["symbol"]
+                pos_p = db.get_symbol_position(sym_p)
+                if not (pos_p and pos_p["active"]):
+                    out += f"  {sym_p}: FLAT\n"
+                    continue
+                ep    = float(pos_p.get("entry_price", 0) or 0)
+                qty   = int(pos_p.get("qty", 0) or 0)
+                d     = pos_p.get("direction", "NONE")
+                # Fetch live mark price from Delta ticker
+                mark  = 0.0
+                try:
+                    import requests as _rq
+                    tr = _rq.get(
+                        f"https://api.india.delta.exchange/v2/tickers/{sym_p}",
+                        timeout=5
+                    )
+                    if tr.status_code == 200:
+                        mark = float(tr.json().get("result", {}).get("mark_price") or 0)
+                except Exception:
+                    pass
+                if ep > 0 and mark > 0 and qty > 0:
+                    pnl = (mark - ep) * qty if d == "BUY" else (ep - mark) * qty
+                    pnl_str = f"${pnl:+.4f}"
+                    ep_str  = f"{ep:.5f}"
+                    total_pnl += pnl
+                else:
+                    pnl_str = "N/A (no entry price)"
+                    ep_str  = "N/A"
+                out += (
+                    f"  {sym_p}: {d} {qty}lot\n"
+                    f"    Entry : {ep_str}\n"
+                    f"    Mark  : {mark:.5f}\n"
+                    f"    PnL   : {pnl_str}\n"
+                )
+            out += "\u2500"*28 + "\n"
+            out += f"  Total uPnL: ${total_pnl:+.4f}"
+            reply(out)
+
     elif cmd.startswith("/"):
         reply(
             "Commands available:\n"
@@ -219,6 +266,7 @@ def _tg_process_command(text, chat_id):
             "/remove SYM   - Close + remove coin (e.g. /remove SOLUSD)\n"
             "/portfolio    - Show all portfolio coins + positions\n"
             "/positions    - All symbol positions\n"
+            "/pnl          - Live unrealized PnL per symbol\n"
             "/fix_avax     - Emergency close AVAXUSD\n"
             "/stop_engine  - Stop trading\n"
             "/start_engine - Resume trading\n"
@@ -728,6 +776,8 @@ def send_portfolio_pulse():
             p_dir = pos["direction"] if (pos and pos["active"]) else "FLAT"
             p_qty = pos["qty"]       if (pos and pos["active"]) else 0
             p_ep  = pos["entry_price"] if (pos and pos["active"]) else 0
+            # FIX (Lego #9): Show N/A instead of 0.00000 when entry price not captured
+            p_ep_str = f"{p_ep:.5f}" if p_ep > 0 else "N/A"
             match = "\u2705" if (p_dir == "FLAT" or sig.startswith(p_dir)) else "\u274c WRONG DIR!"
             lines.append(
                 f"\n{sym}:\n"
@@ -735,7 +785,7 @@ def send_portfolio_pulse():
                 f"  ST({s.get('timeframe',timeframe)}) : {st_val:.5f}\n"
                 f"  Gap      : {gap:+.3f}%\n"
                 f"  Signal   : {sig}\n"
-                f"  Position : {p_dir} {p_qty}lot @ {p_ep:.5f}  {match}"
+                f"  Position : {p_dir} {p_qty}lot @ {p_ep_str}  {match}"
             )
         except Exception as e:
             lines.append(f"\n{sym}: ERROR {e}")
