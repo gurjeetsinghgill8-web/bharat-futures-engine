@@ -473,7 +473,12 @@ with right:
         db.set_param("leverage",         str(lev_sel))
         db.set_param("cooldown_seconds", str(cd_sel))
         db.set_param("settings_updated_at", str(int(time.time())))
-        st.success(f"✅ Saved! TF={tf_sel} P={per_sel} M={mul_sel} SL={sl_sel}% Lots={qty_sel} Lev={lev_sel}x Mode={mode_sel}")
+        # FIX: Also sync every portfolio coin's stored TF/P/M to match dashboard.
+        # Lots stay unchanged per-coin. This keeps symbols table in sync with params.
+        for _s in db.get_all_symbols():
+            db.add_symbol(_s["symbol"], tf_sel, per_sel, mul_sel,
+                          _s["lots"], _s["enabled"])
+        st.success(f"Saved! TF={tf_sel} P={per_sel} M={mul_sel} SL={sl_sel}% Lots={qty_sel} Lev={lev_sel}x Mode={mode_sel}")
 
     st.divider()
     st.markdown("<div class='shdr'>🔑 Manual Key Entry</div>", unsafe_allow_html=True)
