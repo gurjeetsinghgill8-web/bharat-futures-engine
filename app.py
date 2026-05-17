@@ -11,267 +11,220 @@ st.set_page_config(page_title="⚡ BHARAT NEXUS v6.0", page_icon="⚡", layout="
 
 st.markdown("""
 <style>
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;900&display=swap');
-* { font-family: 'Outfit', sans-serif !important; }
-.stApp { background: #0d1117 !important; }
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700;800&display=swap');
 
-/* Force ALL text white */
-p, span, div, label, h1, h2, h3, h4, li { color: #e6edf3 !important; }
+/* ── BASE: Sky blue background, black text everywhere ── */
+* { font-family: 'Inter', sans-serif !important; box-sizing: border-box; }
+.stApp, .main, .block-container {
+    background: #e8f4fd !important;
+}
 
-/* Streamlit widget labels */
+/* ALL text = black by default */
+p, span, div, label, h1, h2, h3, h4, h5, li, small, strong, em {
+    color: #111111 !important;
+}
+
+/* ── Widget labels ── */
 .stSelectbox label, .stNumberInput label, .stSlider label,
-.stTextInput label, .stCheckbox label { color: #c9d1d9 !important; font-weight: 600 !important; }
-
-/* Input boxes */
-.stTextInput input, .stNumberInput input {
-    background: #161b22 !important; color: #e6edf3 !important;
-    border: 1px solid #30363d !important; border-radius: 8px !important;
-}
-.stSelectbox > div > div {
-    background: #1c2128 !important; color: #ffffff !important;
-    border: 1px solid #58a6ff !important; border-radius: 8px !important;
-}
-/* Dropdown open list */
-[data-baseweb="select"] {
-    background: #1c2128 !important;
-}
-[data-baseweb="select"] * {
-    background: #1c2128 !important;
-    color: #ffffff !important;
-}
-[data-baseweb="popover"] {
-    background: #1c2128 !important;
-}
-[data-baseweb="menu"] {
-    background: #1c2128 !important;
-}
-[data-baseweb="option"] {
-    background: #1c2128 !important;
-    color: #ffffff !important;
-}
-[data-baseweb="option"]:hover {
-    background: #1f6feb !important;
-    color: #ffffff !important;
-}
-ul[role="listbox"] li {
-    background: #1c2128 !important;
-    color: #ffffff !important;
-}
-ul[role="listbox"] li:hover {
-    background: #1f6feb !important;
-}
-
-/* ── Text inputs ─────────────────────────────────────────── */
-.stTextInput > div > div > input {
-    background: #1c2128 !important;
-    color: #ffffff !important;
-    border: 1px solid #58a6ff !important;
-    border-radius: 8px !important;
-    font-size: 14px !important;
-}
-.stTextInput label {
-    color: #c9d1d9 !important;
-    font-weight: 600 !important;
-}
-/* Number inputs */
-.stNumberInput input {
-    background: #1c2128 !important;
-    color: #ffffff !important;
-    border: 1px solid #30363d !important;
-    border-radius: 8px !important;
-}
-.stNumberInput label { color: #c9d1d9 !important; }
-
-/* ── Radio buttons ───────────────────────────────────────── */
-.stRadio label {
-    color: #e6edf3 !important;
+.stTextInput label, .stCheckbox label, .stRadio label,
+[data-testid="stWidgetLabel"], [data-testid="stWidgetLabel"] p {
+    color: #1a1a1a !important;
+    font-weight: 700 !important;
     font-size: 13px !important;
 }
-.stRadio > div {
-    gap: 6px !important;
-    flex-wrap: wrap !important;
+
+/* ── Text inputs ── */
+.stTextInput > div > div > input,
+.stNumberInput input {
+    background: #ffffff !important;
+    color: #111111 !important;
+    border: 1.5px solid #4a90d9 !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    font-weight: 600 !important;
 }
-.stRadio [data-testid="stMarkdownContainer"] p {
-    color: #e6edf3 !important;
+.stTextInput > div > div > input:focus,
+.stNumberInput input:focus {
+    border-color: #1565c0 !important;
+    box-shadow: 0 0 0 2px rgba(21,101,192,0.15) !important;
 }
 
-/* ── Expander: LIGHT BACKGROUND for Add/Remove sections ──── */
-/* D-3 FIX: Added data-testid selectors (new Streamlit) alongside old class names */
+/* ── Selectbox / Dropdown ── */
+.stSelectbox > div > div {
+    background: #ffffff !important;
+    color: #111111 !important;
+    border: 1.5px solid #4a90d9 !important;
+    border-radius: 8px !important;
+}
+[data-baseweb="select"] { background: #ffffff !important; }
+[data-baseweb="select"] * { background: #ffffff !important; color: #111111 !important; }
+[data-baseweb="popover"], [data-baseweb="menu"] { background: #ffffff !important; }
+[data-baseweb="option"] { background: #ffffff !important; color: #111111 !important; }
+[data-baseweb="option"]:hover { background: #bbdefb !important; color: #111111 !important; }
+ul[role="listbox"] li { background: #ffffff !important; color: #111111 !important; }
+ul[role="listbox"] li:hover { background: #bbdefb !important; }
+
+/* ── Slider ── */
+.stSlider > div { color: #111111 !important; }
+.stSlider [data-testid="stTickBar"] { color: #555555 !important; }
+.stSlider [data-testid="stSliderThumbValue"] { color: #1565c0 !important; font-weight: 700 !important; }
+
+/* ── Buttons ── */
+.stButton > button {
+    background: #1565c0 !important;
+    color: #ffffff !important;
+    border: none !important;
+    border-radius: 8px !important;
+    font-weight: 700 !important;
+    padding: 10px 16px !important;
+    width: 100% !important;
+    font-size: 14px !important;
+    letter-spacing: 0.3px !important;
+}
+.stButton > button:hover {
+    background: #0d47a1 !important;
+    transform: translateY(-1px) !important;
+    box-shadow: 0 4px 12px rgba(21,101,192,0.3) !important;
+}
+
+/* ── Alert boxes ── */
+.stSuccess, [data-testid="stNotification"][kind="success"] {
+    background: #e8f5e9 !important; color: #1b5e20 !important;
+    border: 1px solid #43a047 !important; border-radius: 8px !important;
+}
+.stWarning, [data-testid="stNotification"][kind="warning"] {
+    background: #fff8e1 !important; color: #e65100 !important;
+    border: 1px solid #fb8c00 !important; border-radius: 8px !important;
+}
+.stError, [data-testid="stNotification"][kind="error"] {
+    background: #fce4ec !important; color: #b71c1c !important;
+    border: 1px solid #e53935 !important; border-radius: 8px !important;
+}
+.element-container .stAlert p { color: inherit !important; }
+
+/* ── Dividers ── */
+hr { border-color: #b3d4f0 !important; }
+
+/* ── Expanders ── */
 .streamlit-expanderContent,
 [data-testid="stExpanderDetails"] {
     background: #ffffff !important;
-    border: 1px solid #d0d7de !important;
-    border-radius: 0 0 8px 8px !important;
+    border: 1.5px solid #4a90d9 !important;
+    border-radius: 0 0 10px 10px !important;
     padding: 16px !important;
 }
 .streamlit-expanderHeader,
-[data-testid="stExpander"] > details > summary {
-    color: #0d1117 !important;
+details > summary {
+    background: #bbdefb !important;
+    color: #0d47a1 !important;
     font-weight: 700 !important;
-    background: #f6f8fa !important;
-    border: 1px solid #d0d7de !important;
+    border: 1.5px solid #4a90d9 !important;
     border-radius: 8px !important;
     font-size: 14px !important;
-}
-/* All text inside expanders: DARK (overrides global white rule) */
-.streamlit-expanderContent p,
-.streamlit-expanderContent span,
-.streamlit-expanderContent div,
-.streamlit-expanderContent label,
-[data-testid="stExpanderDetails"] p,
-[data-testid="stExpanderDetails"] span,
-[data-testid="stExpanderDetails"] div,
-[data-testid="stExpanderDetails"] label,
-[data-testid="stExpanderDetails"] small,
-[data-testid="stExpanderDetails"] .stMarkdown p {
-    color: #0d1117 !important;
-}
-/* Fix icon overlap in expander title */
-details summary span[data-testid="stExpanderToggleIcon"] {
-    display: none !important;
-}
-details > summary {
-    list-style: none !important;
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
     padding: 10px 14px !important;
     cursor: pointer !important;
-    overflow: hidden !important;
-    background: #f6f8fa !important;
-    border: 1px solid #d0d7de !important;
-    border-radius: 8px !important;
-    color: #0969da !important;
-    font-weight: 700 !important;
+    list-style: none !important;
 }
 details > summary::before {
-    content: '▶' !important;
-    font-size: 11px !important;
-    color: #0969da !important;
-    flex-shrink: 0 !important;
-    transition: transform 0.2s !important;
+    content: 'v ' !important;
+    color: #0d47a1 !important;
+    font-size: 12px !important;
 }
-details[open] > summary::before {
-    content: '▼' !important;
+details[open] > summary::before { content: '^ ' !important; }
+
+/* All text in expanders: black */
+.streamlit-expanderContent p, .streamlit-expanderContent span,
+.streamlit-expanderContent div, .streamlit-expanderContent label,
+[data-testid="stExpanderDetails"] p, [data-testid="stExpanderDetails"] span,
+[data-testid="stExpanderDetails"] div, [data-testid="stExpanderDetails"] label,
+[data-testid="stExpanderDetails"] small {
+    color: #111111 !important;
 }
-.streamlit-expanderHeader p {
-    font-size: 14px !important;
-    color: #0969da !important;
-    margin: 0 !important;
-}
-/* Light inputs inside expanders */
+
+/* Inputs inside expanders */
 .streamlit-expanderContent .stTextInput > div > div > input,
-[data-testid="stExpanderDetails"] .stTextInput > div > div > input {
-    background: #ffffff !important;
-    color: #0d1117 !important;
-    border: 1px solid #0969da !important;
-    border-radius: 8px !important;
-    font-size: 15px !important;
-    font-weight: 600 !important;
-}
-.streamlit-expanderContent .stTextInput label,
-.streamlit-expanderContent .stNumberInput label,
-.streamlit-expanderContent .stSelectbox label,
-[data-testid="stExpanderDetails"] .stTextInput label,
-[data-testid="stExpanderDetails"] .stNumberInput label,
-[data-testid="stExpanderDetails"] .stSelectbox label {
-    color: #0d1117 !important;
-    font-weight: 700 !important;
-}
+[data-testid="stExpanderDetails"] .stTextInput > div > div > input,
 .streamlit-expanderContent .stNumberInput input,
 [data-testid="stExpanderDetails"] .stNumberInput input {
-    background: #ffffff !important;
-    color: #0d1117 !important;
-    border: 1px solid #0969da !important;
+    background: #f0f8ff !important;
+    color: #111111 !important;
+    border: 1.5px solid #4a90d9 !important;
     border-radius: 8px !important;
 }
 .streamlit-expanderContent .stSelectbox > div > div,
 [data-testid="stExpanderDetails"] .stSelectbox > div > div {
-    background: #ffffff !important;
-    color: #0d1117 !important;
-    border: 1px solid #0969da !important;
+    background: #f0f8ff !important;
+    color: #111111 !important;
+    border: 1.5px solid #4a90d9 !important;
 }
 
-/* Slider */
-.stSlider > div { color: #e6edf3 !important; }
-
-/* Buttons */
-.stButton > button {
-    background: linear-gradient(135deg, #1f6feb, #1158c7) !important;
-    color: #ffffff !important; border: none !important;
-    border-radius: 8px !important; font-weight: 700 !important;
-    padding: 10px !important; width: 100% !important;
-    font-size: 14px !important;
-}
-.stButton > button:hover {
-    background: linear-gradient(135deg, #388bfd, #1f6feb) !important;
-    transform: translateY(-1px) !important;
-}
-
-/* Success / Warning / Error messages */
-.stSuccess { background: #1a4731 !important; color: #56d364 !important; border: 1px solid #2ea043 !important; }
-.stWarning { background: #3d2b00 !important; color: #d29922 !important; }
-.stError   { background: #3d0f0f !important; color: #f85149 !important; }
-.element-container .stAlert p { color: inherit !important; }
-
-/* Dividers */
-hr { border-color: #21262d !important; }
-
-/* Metric cards */
+/* ── Metric / data cards ── */
 .mcard {
-    background: #161b22; border: 1px solid #30363d;
-    border-radius: 12px; padding: 18px 16px; text-align: center; margin-bottom: 8px;
+    background: #ffffff;
+    border: 1.5px solid #90caf9;
+    border-radius: 12px; padding: 18px 16px;
+    text-align: center; margin-bottom: 8px;
+    box-shadow: 0 2px 8px rgba(21,101,192,0.08);
 }
-.mcard .lbl { font-size: 10px; color: #8b949e; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
-.mcard .val { font-size: 26px; font-weight: 900; }
-.mcard .sub { font-size: 11px; color: #8b949e; margin-top: 4px; }
+.mcard .lbl { font-size: 10px; color: #546e7a !important; text-transform: uppercase; letter-spacing: 2px; margin-bottom: 6px; }
+.mcard .val { font-size: 26px; font-weight: 800; color: #111111 !important; }
+.mcard .sub { font-size: 11px; color: #546e7a !important; margin-top: 4px; }
 
-/* ST card */
-.stcard-up   { background: #0f2d1f; border: 1px solid #2ea043; border-radius: 12px; padding: 18px; text-align: center; }
-.stcard-down { background: #2d0f0f; border: 1px solid #f85149; border-radius: 12px; padding: 18px; text-align: center; }
+/* ST cards */
+.stcard-up   { background: #e8f5e9; border: 1.5px solid #43a047; border-radius: 12px; padding: 18px; text-align: center; }
+.stcard-down { background: #fce4ec; border: 1.5px solid #e53935; border-radius: 12px; padding: 18px; text-align: center; }
 
 /* Badges */
 .badge { display: inline-block; padding: 4px 14px; border-radius: 20px; font-size: 12px; font-weight: 700; }
-.b-on   { background: #1f6feb; color: #fff; }
-.b-off  { background: #b22222; color: #fff; }
-.b-live { background: #2ea043; color: #fff; }
-.b-paper{ background: #9e6a03; color: #fff; }
-.b-buy  { background: #2ea043; color: #fff; }
-.b-sell { background: #f85149; color: #fff; }
-.b-flat { background: #30363d; color: #c9d1d9; }
+.b-on   { background: #1565c0; color: #fff !important; }
+.b-off  { background: #c62828; color: #fff !important; }
+.b-live { background: #2e7d32; color: #fff !important; }
+.b-paper{ background: #f57f17; color: #fff !important; }
+.b-buy  { background: #2e7d32; color: #fff !important; }
+.b-sell { background: #c62828; color: #fff !important; }
+.b-flat { background: #78909c; color: #fff !important; }
 
 /* Section headers */
 .shdr {
-    font-size: 11px; color: #58a6ff; text-transform: uppercase;
-    letter-spacing: 3px; font-weight: 700; margin: 18px 0 8px 0;
-    border-left: 3px solid #1f6feb; padding-left: 10px;
+    font-size: 11px; color: #0d47a1 !important;
+    text-transform: uppercase; letter-spacing: 3px;
+    font-weight: 800; margin: 18px 0 8px 0;
+    border-left: 3px solid #1565c0; padding-left: 10px;
 }
-/* Alert / info boxes */
-.abox { background: #fff0f0; border: 1px solid #f85149; border-radius: 8px; padding: 12px; color: #cf222e; font-size: 13px; text-align: center; margin: 8px 0; }
-.ibox { background: #ddf4ff; border: 1px solid #0969da; border-radius: 8px; padding: 12px; color: #0550ae; font-size: 13px; text-align: center; margin: 8px 0; }
-.sbox { background: #dafbe1; border: 1px solid #2ea043; border-radius: 8px; padding: 12px; color: #116329; font-size: 13px; text-align: center; margin: 8px 0; }
+
+/* Info / Alert / Success boxes */
+.abox { background: #fce4ec; border: 1px solid #e53935; border-radius: 8px; padding: 12px; color: #b71c1c !important; font-size: 13px; text-align: center; margin: 8px 0; }
+.ibox { background: #e3f2fd; border: 1px solid #4a90d9; border-radius: 8px; padding: 12px; color: #0d47a1 !important; font-size: 13px; text-align: center; margin: 8px 0; }
+.sbox { background: #e8f5e9; border: 1px solid #43a047; border-radius: 8px; padding: 12px; color: #1b5e20 !important; font-size: 13px; text-align: center; margin: 8px 0; }
 
 /* Trade table */
 .ttbl { width: 100%; border-collapse: collapse; }
-.ttbl th { background: #161b22; color: #58a6ff; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; padding: 10px; text-align: left; border-bottom: 1px solid #30363d; }
-.ttbl td { color: #c9d1d9; font-size: 12px; padding: 9px 10px; border-bottom: 1px solid #21262d; }
-.pp { color: #56d364; font-weight: 700; }
-.pn { color: #f85149; font-weight: 700; }
+.ttbl th { background: #bbdefb; color: #0d47a1 !important; font-size: 10px; text-transform: uppercase; letter-spacing: 1px; padding: 10px; text-align: left; border-bottom: 2px solid #4a90d9; }
+.ttbl td { color: #111111 !important; font-size: 12px; padding: 9px 10px; border-bottom: 1px solid #e3f2fd; background: #ffffff; }
+.ttbl tr:hover td { background: #e3f2fd !important; }
+.pp { color: #1b5e20 !important; font-weight: 700; }
+.pn { color: #b71c1c !important; font-weight: 700; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #e8f4fd; }
+::-webkit-scrollbar-thumb { background: #90caf9; border-radius: 3px; }
 </style>
 """, unsafe_allow_html=True)
 
 
 db.init_db()
 
+
 # ── HEADER ───────────────────────────────────────────────────
 h1, h2 = st.columns([3, 1])
 with h1:
     st.markdown("""
     <div style='padding:8px 0 12px 0'>
-      <div style='font-size:28px;font-weight:900;color:#58a6ff;letter-spacing:-0.5px;'>
+      <div style='font-size:28px;font-weight:900;color:#0d47a1;letter-spacing:-0.5px;'>
         &#9889; BHARAT NEXUS
       </div>
-      <div style='color:#8b949e;font-size:12px;margin-top:2px;letter-spacing:3px;'>
+      <div style='color:#546e7a;font-size:12px;margin-top:2px;letter-spacing:3px;'>
         MULTI-SYMBOL PORTFOLIO &middot; SUPERTREND ENGINE &middot; v6.0
       </div>
     </div>
@@ -280,8 +233,8 @@ with h2:
     now = datetime.datetime.now()
     st.markdown(f"""
     <div style='text-align:right;padding-top:12px'>
-      <div style='color:#58a6ff;font-size:22px;font-weight:700;'>{now.strftime('%H:%M:%S')}</div>
-      <div style='color:#8b949e;font-size:12px;'>{now.strftime('%d %b %Y')}</div>
+      <div style='color:#1565c0;font-size:22px;font-weight:700;'>{now.strftime('%H:%M:%S')}</div>
+      <div style='color:#546e7a;font-size:12px;'>{now.strftime('%d %b %Y')}</div>
     </div>
     """, unsafe_allow_html=True)
 
