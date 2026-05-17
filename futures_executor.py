@@ -524,6 +524,19 @@ def sync_position_for_symbol(delta_symbol):
             last_ts = int(lt["last_candle_ts"]) if isinstance(lt, dict) else 0
         except Exception:
             last_ts = 0
+
+        # FIX (Lego #7): Delta often returns avg_entry_price=0 for perpetual positions.
+        # If exchange gives us 0, preserve whatever real entry price is already in DB.
+        # This protects the real price saved at trade time (Lego #6B) from being zeroed.
+        if entry_px == 0.0 and active_int == 1:
+            try:
+                existing = db.get_symbol_position(delta_symbol)
+                saved_ep = float(existing["entry_price"]) if (existing and existing.get("entry_price", 0)) else 0.0
+                if saved_ep > 0.0:
+                    entry_px = saved_ep   # Preserve real entry price from DB
+            except Exception:
+                pass
+
         db.update_symbol_position(delta_symbol, direction=direction,
             entry_price=entry_px, qty=qty, active=active_int, last_candle_ts=last_ts)
         return True
